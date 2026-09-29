@@ -9,11 +9,11 @@
  * standalone CLI shares it and re-adds its own entries on next run.
  */
 import { resetHooksConfig } from '../../server/src/configPersistence.js';
-import { uninstallHooks } from '../../server/src/providers/hook/claude/claudeHookInstaller.js';
+import { hookProviders } from '../../server/src/providers/index.js';
 
 // There is no UI to surface errors to after uninstall — log and exit cleanly
 // (an unhandledRejection here would just be noise in VS Code's uninstall flow).
-uninstallHooks()
+Promise.all(hookProviders.map((provider) => provider.uninstallHooks()))
   .catch((err: unknown) => {
     console.error(`[Pixel Agents] ${err instanceof Error ? err.message : String(err)}`);
   })

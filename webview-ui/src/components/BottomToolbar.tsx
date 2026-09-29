@@ -8,7 +8,7 @@ import { Dropdown, DropdownItem } from './ui/Dropdown.js';
 
 interface BottomToolbarProps {
   isEditMode: boolean;
-  onOpenClaude: () => void;
+  providers: { id: string; displayName: string }[];
   onToggleEditMode: () => void;
   isSettingsOpen: boolean;
   onToggleSettings: () => void;
@@ -17,12 +17,13 @@ interface BottomToolbarProps {
 
 export function BottomToolbar({
   isEditMode,
-  onOpenClaude,
+  providers,
   onToggleEditMode,
   isSettingsOpen,
   onToggleSettings,
   workspaceFolders,
 }: BottomToolbarProps) {
+  const [providerId, setProviderId] = useState('claude');
   const [isFolderPickerOpen, setIsFolderPickerOpen] = useState(false);
   const [isBypassMenuOpen, setIsBypassMenuOpen] = useState(false);
   const folderPickerRef = useRef<HTMLDivElement>(null);
@@ -48,12 +49,12 @@ export function BottomToolbar({
     if (hasMultipleFolders) {
       setIsFolderPickerOpen((v) => !v);
     } else {
-      onOpenClaude();
+      transport.send({ type: 'launchAgent', providerId });
     }
   };
 
   const handleAgentHover = () => {
-    if (!isFolderPickerOpen) {
+    if (!isFolderPickerOpen && providerId === 'claude') {
       setIsBypassMenuOpen(true);
     }
   };
@@ -68,7 +69,7 @@ export function BottomToolbar({
     setIsFolderPickerOpen(false);
     const bypassPermissions = pendingBypassRef.current;
     pendingBypassRef.current = false;
-    transport.send({ type: 'launchAgent', folderPath: folder.path, bypassPermissions });
+    transport.send({ type: 'launchAgent', providerId, folderPath: folder.path, bypassPermissions });
   };
 
   const handleBypassSelect = (bypassPermissions: boolean) => {
@@ -77,12 +78,29 @@ export function BottomToolbar({
       pendingBypassRef.current = bypassPermissions;
       setIsFolderPickerOpen(true);
     } else {
-      transport.send({ type: 'launchAgent', bypassPermissions });
+      transport.send({ type: 'launchAgent', providerId, bypassPermissions });
     }
   };
 
   return (
     <div className="absolute bottom-10 left-10 z-20 flex items-center gap-4 pixel-panel p-4">
+      {!isBrowserRuntime && (
+        <select
+          aria-label="Agent provider"
+          value={providerId}
+          onChange={(event) => {
+            setProviderId(event.target.value);
+            setIsBypassMenuOpen(false);
+          }}
+          className="pixel-panel p-4"
+        >
+          {providers.map((provider) => (
+            <option key={provider.id} value={provider.id}>
+              {provider.displayName}
+            </option>
+          ))}
+        </select>
+      )}
       {/* Hide + Agent in standalone browser mode (no terminal to interact with) */}
       {!isBrowserRuntime && (
         <div

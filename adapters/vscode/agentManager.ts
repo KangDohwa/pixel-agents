@@ -282,6 +282,7 @@ export function persistAgents(agents: AgentStateStore, adapter: StateAdapter): v
     persisted.push({
       id: agent.id,
       sessionId: agent.sessionId,
+      providerId: agent.providerId,
       terminalName: agent.terminalRef?.name ?? '',
       isExternal: agent.isExternal || undefined,
       jsonlFile: agent.jsonlFile,
@@ -329,6 +330,7 @@ export function restoreAgents(
   const justRestoredTerminalIds: number[] = [];
 
   for (const p of persisted) {
+    if (p.providerId && p.providerId !== 'claude') continue;
     // Skip agents already in the map — prevents duplicate file watchers on re-entry
     // (webviewReady fires on every panel focus, re-calling restoreAgents each time)
     if (store.has(p.id)) {
@@ -554,6 +556,7 @@ export function sendExistingAgents(
 
   webview.postMessage({
     type: 'existingAgents',
+    providerIds: Object.fromEntries([...agents].map(([id, a]) => [id, a.providerId ?? 'claude'])),
     agents: agentIds,
     agentMeta,
     folderNames,

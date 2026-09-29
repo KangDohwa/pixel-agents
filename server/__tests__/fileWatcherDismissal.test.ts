@@ -16,9 +16,11 @@ vi.mock('vscode', () => ({
 
 import { AgentStateStore } from '../src/agentStateStore.js';
 import {
+  CLEAR_IDLE_THRESHOLD_MS,
   DISMISSED_COOLDOWN_MS,
   EXTERNAL_ACTIVE_THRESHOLD_MS,
   EXTERNAL_SCAN_INTERVAL_MS,
+  FILE_WATCHER_POLL_INTERVAL_MS,
 } from '../src/constants.js';
 import { DismissalTracker } from '../src/dismissalTracker.js';
 import {
@@ -31,6 +33,7 @@ import {
   startExternalSessionScanning,
 } from '../src/fileWatcher.js';
 import { PathSet } from '../src/pathKey.js';
+import { claudeProvider } from '../src/providers/hook/claude/claude.js';
 import { claudeTeamProvider } from '../src/providers/hook/claude/claudeTeamProvider.js';
 import type { AgentState } from '../src/types.js';
 
@@ -525,7 +528,88 @@ describe('fileWatcher dismissal state', () => {
     });
   });
 
-  // ── Constants sanity check ────────────────────────────────────────
+  // Hookless /clear must ignore other providers while retaining the Claude guard.
+
+  it.each([
+    ['none', true],
+    ['codex', true],
+    ['gemini', true],
+    ['claude', false],
+    [undefined, false],
+  ] as const)(
+    '/clear with external provider %s preserves Claude ownership',
+    async (providerId, reassigns) => {
+      vi.useFakeTimers();
+      // Each scenario needs fresh module-level /clear dependencies.
+      vi.resetModules();
+      const watcher = await import('../src/fileWatcher.js');
+      watcher.setDismissalTracker(tracker);
+      const projectScanTimer = { current: null as ReturnType<typeof setInterval> | null };
+      const activeAgentId = { current: 1 as number | null };
+      const oldFile = writeJsonlFile('before-clear.jsonl', '');
+      const persist = vi.fn();
+      try {
+        const terminal = { name: claudeProvider.terminalNamePrefix! };
+        watcher.setHookProvider(claudeProvider);
+        watcher.setTerminalAdapter({
+          activeTerminal: () => terminal,
+          allTerminals: () => [terminal],
+        });
+        watcher.scanForNewJsonlFiles(
+          projectDir,
+          knownJsonlFiles,
+          activeAgentId,
+          nextAgentIdRef,
+          agents,
+          fileWatchers,
+          pollingTimers,
+          waitingTimers,
+          permissionTimers,
+          persist,
+        );
+        watcher.ensureProjectScan(
+          projectDir,
+          knownJsonlFiles,
+          projectScanTimer,
+          activeAgentId,
+          nextAgentIdRef,
+          agents,
+          fileWatchers,
+          pollingTimers,
+          waitingTimers,
+          permissionTimers,
+          persist,
+          undefined,
+          { current: true },
+        );
+        const claude = agents.get(1)!;
+        // Terminal adoption intentionally has no providerId (legacy Claude).
+        expect(claude.providerId).toBeUndefined();
+        claude.linesProcessed = 1;
+        claude.lastDataAt = Date.now() - CLEAR_IDLE_THRESHOLD_MS - 1;
+        if (providerId !== 'none') {
+          agents.set(2, {
+            id: 2,
+            isExternal: true,
+            providerId,
+            jsonlFile: 'external',
+          } as AgentState);
+        }
+        const replacement = writeJsonlFile(
+          'after-clear.jsonl',
+          '{"type":"user","content":"/clear</command-name>"}\n',
+        );
+        vi.advanceTimersByTime(FILE_WATCHER_POLL_INTERVAL_MS);
+        expect(agents.get(1)).toBe(claude);
+        expect(claude.jsonlFile).toBe(reassigns ? replacement : oldFile);
+        expect(agents.size).toBe(providerId === 'none' ? 1 : 2);
+      } finally {
+        if (projectScanTimer.current) clearInterval(projectScanTimer.current);
+        vi.clearAllTimers();
+        vi.useRealTimers();
+      }
+    },
+  );
 
   it('constants are within sensible bounds', () => {
     // Guards against accidental changes that would make these tests lie.

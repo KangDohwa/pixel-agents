@@ -16,7 +16,12 @@ import { readLayoutFromFile, writeLayoutToFile } from './layoutPersistence.js';
 import type { ConsentEffects } from './providers/hook/consentExecutor.js';
 import { applyConsentChoice } from './providers/hook/consentExecutor.js';
 import { hooksConsentRequest } from './providers/hook/consentGate.js';
-import { claudeProvider, hookProviderById, hookProviders } from './providers/index.js';
+import {
+  claudeProvider,
+  hookProviderById,
+  hookProviders,
+  providerCapabilities,
+} from './providers/index.js';
 
 type WsSend = (message: Record<string, unknown>) => void;
 
@@ -360,11 +365,7 @@ function handleWebviewReady(send: WsSend, ctx: ClientMessageContext): void {
   const adapter = store.getAdapter();
 
   // 1. Provider capabilities (must arrive before any agent messages)
-  send({
-    type: 'providerCapabilities',
-    readingTools: [...claudeProvider.readingTools],
-    subagentToolNames: [...claudeProvider.subagentToolNames],
-  });
+  send({ ...providerCapabilities() });
 
   // 2. Assets (from server cache, loaded at startup via pngjs)
   if (cache) {
@@ -500,6 +501,7 @@ function handleWebviewReady(send: WsSend, ctx: ClientMessageContext): void {
   }
   send({
     type: 'existingAgents',
+    providerIds: Object.fromEntries([...store].map(([id, a]) => [id, a.providerId ?? 'claude'])),
     agents: agentIds,
     agentMeta,
     folderNames,

@@ -71,6 +71,9 @@ function App() {
     selectedAgent,
     agentTools,
     agentStatuses,
+    providers,
+    agentProviders,
+    agentUsage,
     subagentTools,
     subagentCharacters,
     layoutReady,
@@ -428,6 +431,9 @@ function App() {
           <ToolOverlay
             officeState={officeState}
             agents={agents}
+            agentStatuses={agentStatuses}
+            agentProviders={agentProviders}
+            agentUsage={agentUsage}
             agentTools={agentTools}
             subagentTools={subagentTools}
             subagentCharacters={subagentCharacters}
@@ -513,7 +519,7 @@ function App() {
 
       <BottomToolbar
         isEditMode={editor.isEditMode}
-        onOpenClaude={editor.handleOpenClaude}
+        providers={providers}
         onToggleEditMode={editor.handleToggleEditMode}
         isSettingsOpen={isSettingsOpen}
         onToggleSettings={() => setIsSettingsOpen((v) => !v)}
@@ -551,6 +557,9 @@ function App() {
           setWatchAllSessions(newVal);
           transport.send({ type: 'setWatchAllSessions', enabled: newVal });
         }}
+        providerHooks={providers
+          .filter((p) => p.hooks && p.id !== 'claude')
+          .map((p) => ({ ...p, installed: hooksInstalled[p.id] === true }))}
         hooksInstalled={claudeHooksInstalled}
         onToggleHooksEnabled={() => {
           // Toggle the DISPLAYED state (actual install), not the preference: when the two disagree — preference on,

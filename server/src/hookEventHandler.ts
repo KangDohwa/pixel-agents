@@ -129,7 +129,8 @@ export class HookEventHandler {
    * @param providerId - Provider that sent the event ('claude', 'codex', etc.)
    * @param event - The hook event payload from the CLI tool
    */
-  handleEvent(_providerId: string, event: HookEvent): void {
+  handleEvent(providerId: string, event: HookEvent): void {
+    if (providerId !== this.provider.id) return;
     if (this.provider.protocolVersion !== HookEventHandler.SUPPORTED_PROTOCOL_VERSION) {
       return; // version mismatch already logged in constructor
     }
@@ -191,6 +192,7 @@ export class HookEventHandler {
       }
       // Check auto-discovery (agent exists but not yet registered for hooks)
       for (const [id, agent] of this.agents) {
+        if ((agent.providerId ?? 'claude') !== this.provider.id) continue;
         if (agent.sessionId === event.session_id) {
           this.registerAgent(agent.sessionId, id);
           agent.hookDelivered = true;
@@ -206,6 +208,7 @@ export class HookEventHandler {
         const projectDir = transcriptPath ? path.dirname(transcriptPath) : cwd;
         if (projectDir) {
           for (const [id, agent] of this.agents) {
+            if ((agent.providerId ?? 'claude') !== this.provider.id) continue;
             // Both /clear and /resume send SessionEnd first (sets pendingClear),
             // then SessionStart. Match the agent that has pendingClear in same project dir.
             // Normalize paths for cross-platform comparison (separators + case-insensitive
@@ -277,13 +280,14 @@ export class HookEventHandler {
         pending.cwd,
       );
       // Re-process this event now that the agent exists
-      this.handleEvent(_providerId, event);
+      this.handleEvent(providerId, event);
       return;
     }
 
     let agentId = this.sessionRouter.resolve(event.session_id);
     if (agentId === undefined) {
       for (const [id, agent] of this.agents) {
+        if ((agent.providerId ?? 'claude') !== this.provider.id) continue;
         if (agent.sessionId === event.session_id) {
           this.registerAgent(agent.sessionId, id);
           agentId = id;
@@ -307,7 +311,7 @@ export class HookEventHandler {
           console.log(
             `[Pixel Agents] Hook: ${eventName} - unknown session ${event.session_id.slice(0, 8)}..., buffering`,
           );
-        this.sessionRouter.bufferEvent(_providerId, event);
+        this.sessionRouter.bufferEvent(providerId, event);
       }
       return;
     }

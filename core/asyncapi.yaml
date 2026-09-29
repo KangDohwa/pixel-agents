@@ -159,6 +159,10 @@ components:
       properties:
         type:
           const: providerCapabilities
+        providers:
+          type: array
+          items:
+            $ref: '#/components/schemas/ProviderSummary'
         readingTools:
           type: array
           items:
@@ -170,6 +174,18 @@ components:
             type: string
           description: Tool names that spawn sub-agent characters (e.g. Task, Agent).
 
+    ProviderSummary:
+      type: object
+      additionalProperties: false
+      required: [id, displayName, hooks]
+      properties:
+        id:
+          type: string
+        displayName:
+          type: string
+        hooks:
+          type: boolean
+
     AgentCreated:
       description: A new agent has appeared in the office.
       type: object
@@ -178,6 +194,8 @@ components:
       properties:
         type:
           const: agentCreated
+        providerId:
+          type: string
         id:
           type: integer
         folderName:
@@ -223,6 +241,10 @@ components:
       properties:
         type:
           const: existingAgents
+        providerIds:
+          type: object
+          additionalProperties:
+            type: string
         agents:
           type: array
           items:
@@ -255,6 +277,12 @@ components:
           type: integer
         status:
           $ref: '#/components/schemas/AgentActivityStatus'
+        silent:
+          type: boolean
+        permissionActive:
+          type: boolean
+        usage:
+          $ref: '#/components/schemas/TokenUsage'
         awaitingInput:
           type: boolean
           description: >-
@@ -262,10 +290,38 @@ components:
             idle waiting on the user (drives the "Waiting for input" label);
             absent/false means the agent finished its turn ("Done").
 
+    TokenUsage:
+      type: object
+      additionalProperties: false
+      properties:
+        total:
+          $ref: '#/components/schemas/TokenCounts'
+        last:
+          $ref: '#/components/schemas/TokenCounts'
+
+    TokenCounts:
+      type: object
+      additionalProperties: false
+      properties:
+        input:
+          type: number
+        cached:
+          type: number
+        cacheWrite:
+          type: number
+        output:
+          type: number
+        reasoning:
+          type: number
+        tool:
+          type: number
+        total:
+          type: number
+
     AgentActivityStatus:
       description: Activity state of an agent.
       type: string
-      enum: [active, waiting]
+      enum: [active, waiting, unknown, interrupted]
 
     AgentToolStart:
       description: Agent began executing a tool.
@@ -805,6 +861,8 @@ components:
       properties:
         type:
           const: launchAgent
+        providerId:
+          type: string
         folderPath:
           type: string
           description: Workspace folder path (for multi-root workspaces).

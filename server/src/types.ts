@@ -1,5 +1,7 @@
 import type * as vscode from 'vscode';
 
+import type { ObservedStatus, TranscriptSnapshot } from '../../core/src/provider.js';
+
 export interface AgentState {
   id: number;
   sessionId: string;
@@ -34,6 +36,8 @@ export interface AgentState {
   hooksOnly?: boolean;
   /** Provider that created this agent (defaults to 'claude') */
   providerId?: string;
+  observedStatus?: ObservedStatus;
+  tokenUsage?: TranscriptSnapshot['usage'];
   /** Set when SessionEnd(reason=clear) fires; cleared when SessionStart(source=clear) reassigns */
   pendingClear?: boolean;
   /** Hook-generated tool ID for PreToolUse/PostToolUse correlation */
@@ -88,6 +92,7 @@ export interface AgentState {
 }
 
 export interface PersistedAgent {
+  providerId?: string;
   id: number;
   sessionId?: string;
   /** Terminal name — empty string for extension panel sessions */

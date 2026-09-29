@@ -159,6 +159,7 @@ export class AgentStateStore {
       persisted.push({
         id: agent.id,
         sessionId: agent.sessionId,
+        providerId: agent.providerId,
         terminalName: agent.terminalRef?.name ?? '',
         isExternal: agent.isExternal || undefined,
         jsonlFile: agent.jsonlFile,

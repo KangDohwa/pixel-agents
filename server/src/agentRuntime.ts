@@ -38,6 +38,7 @@ import type { HookEvent } from './hookEventHandler.js';
 import { HookEventHandler } from './hookEventHandler.js';
 import { assignPaletteIfNeeded } from './paletteAssigner.js';
 import { PathSet, pathsMatch } from './pathKey.js';
+import { providerById } from './providers/index.js';
 import { SessionRouter } from './sessionRouter.js';
 import { SubagentWatch } from './subagentWatch.js';
 import { cancelPermissionTimer, cancelWaitingTimer } from './timerManager.js';
@@ -47,6 +48,7 @@ import {
   setHookProvider,
   setTeamSwitchCallback,
 } from './transcriptParser.js';
+import { TranscriptSessions } from './transcriptSessions.js';
 import type { AgentState } from './types.js';
 
 /** Callbacks that adapters register for platform-specific behavior. */
@@ -82,6 +84,7 @@ export class AgentRuntime {
   readonly dismissalTracker = new DismissalTracker();
   /** Shadow-store watcher for unnamed background spawns (sub-agents). */
   readonly subagentWatch: SubagentWatch;
+  readonly transcripts: TranscriptSessions;
   private hookEventHandler: HookEventHandler;
   private lifecycleCallbacks: RuntimeLifecycleCallbacks = {};
 
@@ -89,6 +92,7 @@ export class AgentRuntime {
     private readonly store: AgentStateStore,
     provider: HookProvider,
   ) {
+    this.transcripts = new TranscriptSessions(store, this.watchAllSessions);
     // Wire module-level dependencies
     setDismissalTracker(this.dismissalTracker);
     setHookProvider(provider);
@@ -289,11 +293,16 @@ export class AgentRuntime {
 
   /** Route an incoming hook event to the appropriate agent. */
   handleHookEvent(providerId: string, event: Record<string, unknown>): void {
-    this.hookEventHandler.handleEvent(providerId, event as HookEvent);
+    const provider = providerById(providerId);
+    if (!provider || provider.kind !== 'hook' || provider.protocolVersion !== 1) return;
+    if (provider.transcripts) this.transcripts.handleHook(provider, event);
+    else this.hookEventHandler.handleEvent(providerId, event as HookEvent);
   }
 
   /** Register an agent with the hook event handler for session->agent mapping. */
   registerAgent(sessionId: string, agentId: number): void {
+    const agent = this.store.get(agentId);
+    if (agent?.providerId && agent.providerId !== 'claude') return;
     this.hookEventHandler.registerAgent(sessionId, agentId);
   }
 
@@ -308,6 +317,7 @@ export class AgentRuntime {
   removeAgent(id: number): void {
     const agent = this.store.get(id);
     if (!agent) return;
+    if (agent.providerId && agent.providerId !== 'claude') this.transcripts.dismiss(agent);
 
     // Stop JSONL poll timer
     const jpTimer = this.jsonlPollTimers.get(id);
@@ -466,6 +476,11 @@ export class AgentRuntime {
     let maxId = 0;
 
     for (const p of persisted) {
+      if (this.store.has(p.id)) continue;
+      if (p.providerId && p.providerId !== 'claude') {
+        if (!this.store.has(p.id)) this.transcripts.restore(p);
+        continue;
+      }
       if (!p.isExternal) continue;
       // Background-spawn children (a leadAgentId but no teamName) are derived
       // state: the 1s scan re-materializes them from sidecars while their spawn
@@ -558,6 +573,7 @@ export class AgentRuntime {
 
   /** Clean up all scanners, timers, and agents. Called on shutdown. */
   dispose(): void {
+    this.transcripts.dispose();
     this.hookEventHandler.dispose();
     this.subagentWatch.dispose();
 
@@ -575,6 +591,10 @@ export class AgentRuntime {
     }
 
     for (const id of [...this.store.keys()]) {
+      // Stopping the office does not end an independently running file-provider
+      // session. Preserve its identity for the next process's unknown-state restore.
+      const providerId = this.store.get(id)?.providerId;
+      if (providerId && providerById(providerId)?.transcripts) continue;
       this.removeAgent(id);
     }
   }

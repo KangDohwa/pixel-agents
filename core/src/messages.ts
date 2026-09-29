@@ -66,12 +66,20 @@ export type ClientMessage =
 
 export interface ProviderCapabilities {
   type: 'providerCapabilities';
+  providers?: ProviderSummary[];
   readingTools: string[];
   subagentToolNames: string[];
 }
 
+export interface ProviderSummary {
+  id: string;
+  displayName: string;
+  hooks: boolean;
+}
+
 export interface AgentCreated {
   type: 'agentCreated';
+  providerId?: string;
   id: number;
   folderName?: string;
   isExternal?: boolean;
@@ -91,6 +99,7 @@ export interface AgentSelected {
 
 export interface ExistingAgents {
   type: 'existingAgents';
+  providerIds?: Record<string, string>;
   agents: number[];
   agentMeta: Record<string, AgentSeatMeta>;
   folderNames: Record<string, string>;
@@ -107,10 +116,28 @@ export interface AgentStatus {
   type: 'agentStatus';
   id: number;
   status: AgentActivityStatus;
+  silent?: boolean;
+  permissionActive?: boolean;
+  usage?: TokenUsage;
   awaitingInput?: boolean;
 }
 
-export type AgentActivityStatus = 'active' | 'waiting';
+export type AgentActivityStatus = 'active' | 'waiting' | 'unknown' | 'interrupted';
+
+export interface TokenUsage {
+  total?: TokenCounts;
+  last?: TokenCounts;
+}
+
+export interface TokenCounts {
+  input?: number;
+  cached?: number;
+  cacheWrite?: number;
+  output?: number;
+  reasoning?: number;
+  tool?: number;
+  total?: number;
+}
 
 export interface AgentToolStart {
   type: 'agentToolStart';
@@ -321,6 +348,7 @@ export interface WebviewReady {
 
 export interface LaunchAgent {
   type: 'launchAgent';
+  providerId?: string;
   folderPath?: string;
   bypassPermissions?: boolean;
 }

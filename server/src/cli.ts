@@ -171,6 +171,8 @@ async function main(): Promise<void> {
           return;
         }
         try {
+          if (provider.prepareHooks && !provider.prepareHooks(packageRoot))
+            throw new Error('Could not prepare hook script');
           await provider.installHooks(
             `http://127.0.0.1:${currentConfig.port}`,
             currentConfig.token,
@@ -284,6 +286,8 @@ async function main(): Promise<void> {
 
     // Start scanning for external sessions (Claude running in user's terminal)
     const cwd = process.cwd();
+    runtime.restoreExternalAgents();
+    runtime.transcripts.start([cwd]);
     const dirs = claudeProvider.getSessionDirs?.(cwd);
     if (dirs && dirs[0]) {
       const projectDir = dirs[0];

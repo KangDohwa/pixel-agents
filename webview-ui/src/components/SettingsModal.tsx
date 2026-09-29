@@ -26,6 +26,7 @@ interface SettingsModalProps {
    *  still pending, so binding the checkbox to it renders "on" over an empty
    *  ~/.claude/settings.json. */
   hooksInstalled: boolean;
+  providerHooks?: { id: string; displayName: string; installed: boolean }[];
   onToggleHooksEnabled: () => void;
   /** Whether the areas overlay is rendered outside of the Areas edit tool. */
   showAreas: boolean;
@@ -51,6 +52,7 @@ export function SettingsModal({
   watchAllSessions,
   onToggleWatchAllSessions,
   hooksInstalled,
+  providerHooks = [],
   onToggleHooksEnabled,
   showAreas,
   onToggleShowAreas,
@@ -189,6 +191,20 @@ export function SettingsModal({
         checked={hooksInstalled}
         onChange={onToggleHooksEnabled}
       />
+      {providerHooks.map((p) => (
+        <Checkbox
+          key={p.id}
+          label={p.displayName + ' Hooks (optional)'}
+          checked={p.installed}
+          onChange={() =>
+            transport.send({ type: 'setHooksEnabled', providerId: p.id, enabled: !p.installed })
+          }
+        />
+      ))}
+      <p className="text-2xs">
+        Codex and Gemini sessions are discovered from local logs. Unknown means the log cannot
+        confirm current activity. Gemini hooks can add live turn and approval events.
+      </p>
       <Checkbox
         label="Always Show Labels"
         checked={alwaysShowOverlay}

@@ -67,7 +67,16 @@ export function resendAgentActivity(
     }
 
     // 4. Waiting status
-    if (agent.isWaiting) {
+    if (agent.observedStatus) {
+      send({
+        type: 'agentStatus',
+        id,
+        status: agent.observedStatus,
+        usage: agent.tokenUsage ?? {},
+        permissionActive: agent.permissionSent,
+        silent: true,
+      });
+    } else if (agent.isWaiting) {
       send({
         type: 'agentStatus',
         id,

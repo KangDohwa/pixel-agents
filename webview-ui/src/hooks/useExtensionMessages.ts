@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 
 import type { HooksConsentRequest } from '../../../core/src/messages.js';
+import type { TranscriptSnapshot } from '../../../core/src/provider.js';
 import { playDoneSound, playPermissionSound, setSoundEnabled } from '../notificationSound.js';
 import type { ExistingAgentMeta, PendingAgent } from '../office/engine/existingAgents.js';
 import { reconcileExistingAgents } from '../office/engine/existingAgents.js';
@@ -69,6 +70,9 @@ export interface WorkspaceFolder {
 }
 
 interface ExtensionMessageState {
+  providers: { id: string; displayName: string; hooks: boolean }[];
+  agentProviders: Record<number, string>;
+  agentUsage: Record<number, TranscriptSnapshot['usage']>;
   agents: number[];
   selectedAgent: number | null;
   agentTools: Record<number, ToolActivity[]>;
@@ -121,6 +125,11 @@ export function useExtensionMessages(
   onLayoutLoaded?: (layout: OfficeLayout) => void,
   isEditDirty?: () => boolean,
 ): ExtensionMessageState {
+  const [providers, setProviders] = useState<{ id: string; displayName: string; hooks: boolean }[]>(
+    [],
+  );
+  const [agentProviders, setAgentProviders] = useState<Record<number, string>>({});
+  const [agentUsage, setAgentUsage] = useState<Record<number, TranscriptSnapshot['usage']>>({});
   const [agents, setAgents] = useState<number[]>([]);
   const [selectedAgent, setSelectedAgent] = useState<number | null>(null);
   const [agentTools, setAgentTools] = useState<Record<number, ToolActivity[]>>({});
@@ -208,6 +217,7 @@ export function useExtensionMessages(
       }
 
       if (msg.type === 'providerCapabilities') {
+        setProviders(msg.providers ?? []);
         setProviderCapabilities({
           readingTools: msg.readingTools,
           subagentToolNames: msg.subagentToolNames,
@@ -245,6 +255,7 @@ export function useExtensionMessages(
           saveAgentSeats(os);
         }
       } else if (msg.type === 'agentCreated') {
+        setAgentProviders((p) => ({ ...p, [msg.id]: msg.providerId ?? 'claude' }));
         const id = msg.id as number;
         const folderName = msg.folderName as string | undefined;
         const isTeammate = msg.isTeammate as boolean | undefined;
@@ -318,6 +329,7 @@ export function useExtensionMessages(
         setSubagentCharacters((prev) => prev.filter((s) => s.parentAgentId !== id));
         os.removeAgent(id);
       } else if (msg.type === 'existingAgents') {
+        setAgentProviders(msg.providerIds ?? {});
         const incoming = msg.agents as number[];
         const meta = (msg.agentMeta || {}) as Record<number, ExistingAgentMeta>;
         const folderNames = (msg.folderNames || {}) as Record<number, string>;
@@ -361,11 +373,12 @@ export function useExtensionMessages(
         const permissionActive = msg.permissionActive as boolean | undefined;
         setAgentTools((prev) => {
           const list = prev[id] || [];
-          if (list.some((t) => t.toolId === toolId)) return prev;
+          const existing = list.find((t) => t.toolId === toolId);
+          if (existing && (!existing.done || !String(msg.toolName).includes('/'))) return prev;
           return {
             ...prev,
             [id]: [
-              ...list,
+              ...list.filter((t) => t.toolId !== toolId),
               { toolId, status, done: false, permissionWait: permissionActive || false },
             ],
           };
@@ -473,6 +486,7 @@ export function useExtensionMessages(
         setSelectedAgent(id);
       } else if (msg.type === 'agentStatus') {
         const id = msg.id as number;
+        if ('usage' in msg) setAgentUsage((p) => ({ ...p, [id]: msg.usage }));
         const status = msg.status as string;
         setAgentStatuses((prev) => {
           if (status === 'active') {
@@ -484,9 +498,38 @@ export function useExtensionMessages(
           return { ...prev, [id]: status };
         });
         os.setAgentActive(id, status === 'active');
+        if (msg.permissionActive !== undefined) {
+          setAgentTools((prev) => {
+            const list = prev[id];
+            if (!list) return prev;
+            return {
+              ...prev,
+              [id]: list.map((t) => ({
+                ...t,
+                permissionWait: !t.done && msg.permissionActive === true,
+              })),
+            };
+          });
+          if (msg.permissionActive) os.showPermissionBubble(id);
+          else os.clearPermissionBubble(id);
+        }
+        if (status === 'active' && 'silent' in msg && !msg.permissionActive) {
+          const character = os.characters.get(id);
+          if (character) {
+            character.bubbleType = null;
+            character.bubbleTimer = 0;
+          }
+        }
         if (status === 'waiting') {
           os.showWaitingBubble(id, msg.awaitingInput === true);
-          playDoneSound();
+          if (!msg.silent) playDoneSound();
+        } else if (status === 'unknown' || status === 'interrupted') {
+          const character = os.characters.get(id);
+          if (character) {
+            character.bubbleType = null;
+            character.bubbleTimer = 0;
+          }
+          os.setAgentTool(id, null);
         }
       } else if (msg.type === 'agentToolPermission') {
         const id = msg.id as number;
@@ -759,6 +802,9 @@ export function useExtensionMessages(
   }, [subagentTools, subagentCharacters, getOfficeState]);
 
   return {
+    providers,
+    agentProviders,
+    agentUsage,
     agents,
     selectedAgent,
     agentTools,

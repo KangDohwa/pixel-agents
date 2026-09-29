@@ -136,7 +136,7 @@ export function startFileWatching(
       agent.fileOffset === prevOffset &&
       agent.terminalRef &&
       !agent.isExternal &&
-      ![...agents.values()].some((a) => a.isExternal) &&
+      ![...agents.values()].some((a) => a.isExternal && (a.providerId ?? 'claude') === 'claude') &&
       agent.linesProcessed > 0 &&
       clearDetectionDeps.activeAgentIdRef.current === agentId &&
       Date.now() - agent.lastDataAt > CLEAR_IDLE_THRESHOLD_MS
@@ -410,6 +410,7 @@ export function scanForNewJsonlFiles(
     ) {
       let owned = false;
       for (const agent of agents.values()) {
+        if (agent.providerId && agent.providerId !== 'claude') continue;
         if (agent.terminalRef === activeTerminal) {
           owned = true;
           break;
@@ -472,6 +473,7 @@ export function scanForNewJsonlFiles(
 
   // Clean up orphaned agents whose terminals have been closed (skip external agents)
   for (const [id, agent] of agents) {
+    if (agent.providerId && agent.providerId !== 'claude') continue;
     if (agent.isExternal) continue;
     if (agent.terminalRef && agent.terminalRef.exitStatus !== undefined) {
       console.log(`[Pixel Agents] Watcher: Agent ${id} - terminal closed, cleaning up orphan`);
@@ -967,6 +969,7 @@ export function scanTeamConfigsForRemovals(agents: AgentStateStore): number[] {
   // Group teammates by their teamName for efficient config lookups
   const teammatesByTeam = new Map<string, Array<{ id: number; agent: AgentState }>>();
   for (const [id, agent] of agents) {
+    if (agent.providerId && agent.providerId !== 'claude') continue;
     if (agent.leadAgentId === undefined || agent.teamUsesTmux || !agent.teamName) continue;
     let list = teammatesByTeam.get(agent.teamName);
     if (!list) {
@@ -1013,6 +1016,7 @@ export function scanAllTeammateFiles(
   // write to the same teammate directory) and create spurious teammate characters for
   // them when the Agent Teams feature is OFF.
   for (const [agentId, agent] of agents) {
+    if (agent.providerId && agent.providerId !== 'claude') continue;
     // Only scan for lead agents (not teammates themselves)
     if (agent.leadAgentId !== undefined) continue;
     if (!agent.sessionId || !agent.projectDir) continue;
@@ -1571,6 +1575,7 @@ export function startStaleExternalAgentCheck(
     const toRemove: number[] = [];
 
     for (const [id, agent] of agents) {
+      if (agent.providerId && agent.providerId !== 'claude') continue;
       if (!agent.isExternal) continue;
 
       // Only despawn if the JSONL file has been deleted from disk.

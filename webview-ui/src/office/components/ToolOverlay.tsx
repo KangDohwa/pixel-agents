@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 
+import type { TranscriptSnapshot } from '../../../../core/src/provider.js';
 import { Button } from '../../components/ui/Button.js';
 import {
   CHARACTER_SITTING_OFFSET_PX,
@@ -32,6 +33,9 @@ const WAITING_INPUT_ACTIVITY_TEXT = 'Waiting for input';
 interface ToolOverlayProps {
   officeState: OfficeState;
   agents: number[];
+  agentStatuses?: Record<number, string>;
+  agentProviders?: Record<number, string>;
+  agentUsage?: Record<number, TranscriptSnapshot['usage']>;
   agentTools: Record<number, ToolActivity[]>;
   subagentTools: Record<number, Record<string, ToolActivity[]>>;
   subagentCharacters: SubagentCharacter[];
@@ -84,6 +88,9 @@ function getFuelColor(ratio: number): string {
 export function ToolOverlay({
   officeState,
   agents,
+  agentStatuses = {},
+  agentProviders = {},
+  agentUsage = {},
   agentTools,
   subagentTools,
   subagentCharacters,
@@ -187,6 +194,16 @@ export function ToolOverlay({
           );
         }
 
+        if (
+          agentProviders[id] &&
+          agentProviders[id] !== 'claude' &&
+          ch.isActive &&
+          activityText === 'Idle'
+        )
+          activityText = 'Working';
+        if (agentStatuses[id] === 'unknown' && ch.bubbleType !== 'permission')
+          activityText = 'Unknown (not observable)';
+        if (agentStatuses[id] === 'interrupted') activityText = 'Turn interrupted';
         // Determine dot color
         const tools = agentTools[id];
         const hasPermission = subHasPermission || tools?.some((t) => t.permissionWait && !t.done);
@@ -233,6 +250,9 @@ export function ToolOverlay({
                 />
               )}
               <div className="flex flex-col gap-0 overflow-hidden">
+                {agentProviders[id] && agentProviders[id] !== 'claude' && (
+                  <span className="text-2xs">{agentProviders[id]}</span>
+                )}
                 {teamRoleLabel && (
                   <span
                     className="overflow-hidden text-ellipsis block leading-none"
@@ -254,6 +274,11 @@ export function ToolOverlay({
                 >
                   {activityText}
                 </span>
+                {agentProviders[id] && agentProviders[id] !== 'claude' && (
+                  <span className="text-2xs" title="Reported usage, not context-window occupancy">
+                    Tokens: {agentUsage[id]?.total?.total?.toLocaleString() ?? 'unknown'}
+                  </span>
+                )}
                 {ch.folderName && (
                   <span className="text-2xs leading-none overflow-hidden text-ellipsis block">
                     {ch.folderName}

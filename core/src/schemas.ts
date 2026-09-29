@@ -13,6 +13,7 @@
 
 /** Persisted agent data (survives F5 reload / restart) */
 export interface PersistedAgent {
+  providerId?: string;
   id: number;
   sessionId?: string;
   terminalName: string;

@@ -1,10 +1,8 @@
 /**
  * Provider abstraction for AI agent tools.
  *
- * Only HookProvider ships today (Claude Code). Transcript-polling and push-based
- * provider types will be added when a real second provider (Codex, Goose,
- * Discord, etc.) actually lands, derived from that provider's needs rather than
- * speculation.
+ * Claude uses hooks and its legacy transcript fallback. Codex and Gemini share
+ * a stateful transcript boundary; Gemini can supplement it with optional hooks.
  */
 
 import type { TeamProvider } from './teamProvider.js';
@@ -12,6 +10,7 @@ import type { TeamProvider } from './teamProvider.js';
 // ── Normalized Events (all provider types produce these) ──────
 
 export type AgentEvent =
+  | { kind: 'turnStart' }
   | {
       kind: 'toolStart';
       toolId: string;
@@ -72,6 +71,10 @@ export interface HookProvider {
    *  version it doesn't understand. Bump on every breaking change to AgentEvent
    *  / TeamProvider / HookProvider. Start at 1. */
   readonly protocolVersion: number;
+  /** Optional stateful transcript reader (Codex/Gemini). Claude retains its parser. */
+  readonly transcripts?: TranscriptSupport;
+  /** Copy this provider's bundled hook before an explicitly approved install. */
+  prepareHooks?(bundleRoot: string): boolean;
 
   /** Normalize a raw hook event payload into an AgentEvent.
    *  Each CLI sends different JSON (Claude: snake_case, Copilot: camelCase, etc.)
@@ -80,6 +83,8 @@ export interface HookProvider {
   normalizeHookEvent(raw: Record<string, unknown>): {
     sessionId: string;
     event: AgentEvent;
+    cwd?: string;
+    transcriptPath?: string;
   } | null;
 
   /** Install hook scripts that POST to our server. */
@@ -147,5 +152,53 @@ export interface HookProvider {
   readonly team?: TeamProvider;
 }
 
-// TODO(provider type taxonomy): FileProvider (polling-only CLIs) and StreamProvider
-// (push-based external services) will be added alongside the first real second provider
+export interface FileProvider extends Pick<
+  HookProvider,
+  | 'id'
+  | 'displayName'
+  | 'protocolVersion'
+  | 'formatToolStatus'
+  | 'readingTools'
+  | 'subagentToolNames'
+  | 'terminalNamePrefix'
+  | 'buildLaunchCommand'
+> {
+  readonly kind: 'file';
+  readonly transcripts: TranscriptSupport;
+}
+
+export type AgentProvider = HookProvider | FileProvider;
+export type ObservedStatus = 'active' | 'waiting' | 'unknown' | 'interrupted';
+export interface TokenCounts {
+  input?: number;
+  cached?: number;
+  cacheWrite?: number;
+  output?: number;
+  reasoning?: number;
+  tool?: number;
+  total?: number;
+}
+export interface TranscriptSnapshot {
+  startedAt?: number;
+  sessionId?: string;
+  cwd?: string;
+  parentSessionId?: string;
+  forkedFromId?: string;
+  status: ObservedStatus;
+  tools: Map<string, { name: string; input?: unknown }>;
+  usage?: { total?: TokenCounts; last?: TokenCounts };
+  contextWindow?: number;
+}
+export interface TranscriptReader {
+  accept(record: unknown): void;
+  snapshot(): TranscriptSnapshot;
+}
+export interface TranscriptFileLocation {
+  path: string;
+  cwd?: string;
+  parentSessionId?: string;
+}
+export interface TranscriptSupport {
+  discover(workspaces: readonly string[]): TranscriptFileLocation[];
+  createReader(): TranscriptReader;
+}

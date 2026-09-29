@@ -50,6 +50,8 @@ import {
   copyHookScript,
   hookProviderById,
   hookProviders,
+  providerById,
+  providerCapabilities,
 } from '../../server/src/providers/index.js';
 import { PixelAgentsServer } from '../../server/src/server.js';
 import {
@@ -123,6 +125,7 @@ export class PixelAgentsViewProvider implements vscode.WebviewViewProvider {
     this.store.on('agentAdded', (id, agent) => {
       this.sendOrBuffer({
         type: 'agentCreated',
+        providerId: agent.providerId ?? 'claude',
         id,
         folderName: agent.folderName,
         isExternal: agent.isExternal || undefined,
@@ -260,6 +263,8 @@ export class PixelAgentsViewProvider implements vscode.WebviewViewProvider {
       return;
     }
     try {
+      if (provider.prepareHooks && !provider.prepareHooks(this.context.extensionPath))
+        throw new Error('Could not prepare hook script');
       await provider.installHooks(
         port !== undefined ? `http://127.0.0.1:${port}` : '',
         token ?? '',
@@ -418,6 +423,26 @@ export class PixelAgentsViewProvider implements vscode.WebviewViewProvider {
 
     webviewView.webview.onDidReceiveMessage(async (message) => {
       if (message.type === 'launchAgent') {
+        const selectedProvider = providerById(message.providerId ?? 'claude');
+        if (!selectedProvider) return;
+        if (selectedProvider.id !== 'claude') {
+          const cwd =
+            message.folderPath ||
+            vscode.workspace.workspaceFolders?.[0]?.uri.fsPath ||
+            os.homedir();
+          const launch = selectedProvider.buildLaunchCommand?.('', cwd);
+          if (!launch) return;
+          // Bundled file providers launch fixed executable names with no arguments.
+          // A normal shell also resolves Windows npm .cmd shims. cwd is a terminal option.
+          const terminal = vscode.window.createTerminal({
+            name: selectedProvider.displayName,
+            cwd,
+            env: launch.env,
+          });
+          terminal.show();
+          terminal.sendText(launch.command);
+          return;
+        }
         const prevAgentIds = new Set(this.store.keys());
         await launchNewTerminal(
           this.store.nextAgentId,
@@ -550,11 +575,7 @@ export class PixelAgentsViewProvider implements vscode.WebviewViewProvider {
         // Provider capabilities: tool taxonomy for webview animation + subagent rendering.
         // Sent once before restoreAgents so characters render with correct animations
         // from the first frame.
-        this.webview?.postMessage({
-          type: 'providerCapabilities',
-          readingTools: [...claudeProvider.readingTools],
-          subagentToolNames: [...claudeProvider.subagentToolNames],
-        });
+        this.webview?.postMessage(providerCapabilities());
 
         // Settings + folder→Area mappings MUST be dispatched BEFORE restoreAgents
         // and the auto-spawn path. Both paths emit `agentCreated` postMessages via
@@ -640,6 +661,10 @@ export class PixelAgentsViewProvider implements vscode.WebviewViewProvider {
           mappings: config.vscode.areaMappings ?? {},
         });
 
+        for (const saved of this.adapter.loadAgents()) {
+          if (saved.providerId && saved.providerId !== 'claude' && !this.store.has(saved.id))
+            this.runtime.transcripts.restore(saved);
+        }
         restoreAgents(
           this.adapter,
           this.store.nextAgentId,
@@ -702,6 +727,10 @@ export class PixelAgentsViewProvider implements vscode.WebviewViewProvider {
           // (which retrigger webviewReady) never auto-spawn unexpectedly.
           this.autoSpawnAttempted = true;
         }
+
+        this.runtime.transcripts.start(
+          vscode.workspace.workspaceFolders?.map((f) => f.uri.fsPath) ?? [os.homedir()],
+        );
 
         // Send workspace folders to webview (only when multi-root)
         const wsFolders = vscode.workspace.workspaceFolders;
