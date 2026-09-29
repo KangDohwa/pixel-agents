@@ -11,7 +11,9 @@ let tmpHome: string;
 let workspaceDir: string;
 
 function makeNodeCommand(scriptPath: string): string {
-  return `${JSON.stringify(process.execPath)} ${JSON.stringify(scriptPath)}`;
+  const quote = (value: string) =>
+    process.platform === 'win32' ? `"${value}"` : `'${value.replaceAll("'", "'\\''")}'`;
+  return `${quote(process.execPath)} ${quote(scriptPath)}`;
 }
 
 function writeHookScript(scriptPath: string, outputPath: string): void {
@@ -54,6 +56,7 @@ function runMockClaude(
       env: {
         ...process.env,
         HOME: tmpHome,
+        USERPROFILE: tmpHome,
       },
       stdio: ['ignore', 'ignore', 'pipe'],
     });

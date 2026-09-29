@@ -94,7 +94,14 @@ async function verifyExtensionHost(extensionRoot, smokeRoot) {
     await runTests({
       extensionDevelopmentPath: extensionRoot,
       extensionTestsPath: runner,
-      extensionTestsEnv: { ...process.env, HOME: home, USERPROFILE: home },
+      extensionTestsEnv: {
+        ...process.env,
+        HOME: home,
+        USERPROFILE: home,
+        CODEX_HOME: path.join(home, '.codex'),
+        GEMINI_CLI_HOME: home,
+        PIXEL_AGENTS_DEBUG_LOG: path.join(home, 'debug.log'),
+      },
       launchArgs: [
         '--disable-extensions',
         '--disable-gpu',

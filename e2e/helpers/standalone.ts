@@ -116,6 +116,9 @@ function spawnStandaloneHost(args: {
         ...process.env,
         HOME: args.homeDir,
         USERPROFILE: args.homeDir,
+        CODEX_HOME: path.join(args.homeDir, '.codex'),
+        GEMINI_CLI_HOME: args.homeDir,
+        PIXEL_AGENTS_DEBUG_LOG: path.join(args.homeDir, 'debug.log'),
       },
       stdio: 'pipe',
     },
@@ -240,7 +243,10 @@ export async function launchStandalone(
   const configPath = path.join(tmpHome, '.pixel-agents', 'config.json');
   if ((options.seedHooksConsent ?? true) && !fs.existsSync(configPath)) {
     fs.mkdirSync(path.dirname(configPath), { recursive: true });
-    fs.writeFileSync(configPath, JSON.stringify({ hooksConsent: { claude: 'granted' } }, null, 2));
+    fs.writeFileSync(
+      configPath,
+      JSON.stringify({ hooksConsent: { claude: 'granted', gemini: 'declined' } }, null, 2),
+    );
   }
   const hostPort = await getFreePort();
   const hostUrl = `http://127.0.0.1:${hostPort}`;

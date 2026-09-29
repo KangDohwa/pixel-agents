@@ -58,6 +58,7 @@ function createTestAgent(overrides: Partial<AgentState> = {}): AgentState {
 describe('clientMessageHandler: areas + carpet wire ordering', () => {
   let tempHome: string;
   let originalHome: string | undefined;
+  let originalProfile: string | undefined;
   let store: AgentStateStore;
   let sent: Array<Record<string, unknown>>;
   let ctx: ClientMessageContext;
@@ -69,7 +70,9 @@ describe('clientMessageHandler: areas + carpet wire ordering', () => {
   beforeEach(() => {
     tempHome = fs.mkdtempSync(path.join(os.tmpdir(), 'pxl-cmh-test-'));
     originalHome = process.env.HOME;
+    originalProfile = process.env.USERPROFILE;
     process.env.HOME = tempHome;
+    process.env.USERPROFILE = tempHome;
 
     store = new AgentStateStore();
     store.setAdapter(new FileStateAdapter({ namespace: 'standalone' }));
@@ -78,6 +81,8 @@ describe('clientMessageHandler: areas + carpet wire ordering', () => {
   });
 
   afterEach(() => {
+    if (originalProfile === undefined) delete process.env.USERPROFILE;
+    else process.env.USERPROFILE = originalProfile;
     if (originalHome === undefined) {
       delete process.env.HOME;
     } else {
@@ -425,6 +430,7 @@ describe('clientMessageHandler: areas + carpet wire ordering', () => {
 describe('clientMessageHandler: saveAgentSeats palette sync', () => {
   let tempHome: string;
   let originalHome: string | undefined;
+  let originalProfile: string | undefined;
   let store: AgentStateStore;
   let sent: Array<Record<string, unknown>>;
   let ctx: ClientMessageContext;
@@ -436,7 +442,9 @@ describe('clientMessageHandler: saveAgentSeats palette sync', () => {
   beforeEach(() => {
     tempHome = fs.mkdtempSync(path.join(os.tmpdir(), 'pxl-cmh-seats-'));
     originalHome = process.env.HOME;
+    originalProfile = process.env.USERPROFILE;
     process.env.HOME = tempHome;
+    process.env.USERPROFILE = tempHome;
 
     store = new AgentStateStore();
     store.setAdapter(new FileStateAdapter({ namespace: 'standalone' }));
@@ -445,6 +453,8 @@ describe('clientMessageHandler: saveAgentSeats palette sync', () => {
   });
 
   afterEach(() => {
+    if (originalProfile === undefined) delete process.env.USERPROFILE;
+    else process.env.USERPROFILE = originalProfile;
     if (originalHome === undefined) {
       delete process.env.HOME;
     } else {
