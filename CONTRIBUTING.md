@@ -27,7 +27,7 @@ Then press **F5** in VS Code to launch the Extension Development Host.
 If you want to test the extension the same way end users install it, build a `.vsix` package and install it through the VS Code CLI:
 
 ```bash
-npx @vscode/vsce package --allow-star-activation --out pixel-agents-local.vsix
+npx --yes @vscode/vsce@4.0.0 package --no-dependencies --allow-star-activation --out pixel-agents-local.vsix
 code --install-extension ./pixel-agents-local.vsix --force
 ```
 
@@ -48,20 +48,20 @@ npm run verify:npm-package
 
 The verifier runs the production `prepack` build, creates a tarball outside the repository, installs that exact tarball into a temporary project, and exercises CLI help, the health endpoint, the standalone SPA, bundled assets, and default Hook ON setup. Temporary files and the child server are removed automatically; it never publishes to npm.
 
-### Maintainer release checklist
+### Personal installation packages
 
-A published GitHub Release coordinates publishing to the VS Code Marketplace, Open VSX, and npm through [`.github/workflows/publish-extension.yml`](.github/workflows/publish-extension.yml). Publishing is release-driven, not triggered by a push to `main` alone.
+In this fork, [**Build Install Packages**](.github/workflows/package.yml) in GitHub Actions runs manually and creates verified VSIX and npm tarball artifacts. Select a branch under **Run workflow**, then download `extension-*` or `npm-package-*` from that run. No publisher account, registry token, or deployment settings are needed.
 
-One-time npm setup: configure the `pixel-agents` package's GitHub Actions [trusted publisher](https://docs.npmjs.com/trusted-publishers/) for `pixel-agents-hq/pixel-agents`, workflow `publish-extension.yml`, no environment, and allow `npm publish`.
-The GitHub-hosted workflow enforces Node >=22.14.0 and npm >=11.5.1 and uses OIDC (`id-token: write`); do not configure a long-lived publish token, and revoke any unused one.
+Extract the downloaded artifact before installing. Replace `<version>` with the version in the tarball filename:
 
-For each release:
+```bash
+code --install-extension ./pixel-agents-local.vsix --force
+npm install --global ./pixel-agents-<version>.tgz
+```
 
-1. Update `CHANGELOG.md`, then set the same new version in the root `package.json` and both root-version fields in `package-lock.json`. The private workspace manifests are not released and do not receive the extension version.
-2. Run `npm ci`, `npm test`, and `npm run verify:npm-package`. Inspect the generated package if needed by manually dispatching **Publish Extension** in dry-run mode and downloading its `npm-package-*` artifact; manual dispatch never publishes to npm.
-3. Merge the release changes into `main` and wait for CI to pass.
-4. Create and publish a GitHub Release whose tag is exactly `v<package.json version>` and points to that commit on `main` (for example, `v1.4.0`). The npm job rejects a mismatched tag, ref, package identity, non-incrementing version, or changed tarball integrity.
-5. Confirm the Marketplace, Open VSX, and npm jobs succeeded, and verify the new npm version with `npm view pixel-agents version`.
+The package identity is unchanged, so installing the VSIX updates any existing `pablodelucca.pixel-agents` extension in that VS Code target. Use a separate VS Code extensions directory if you want to keep your regular installation separate.
+
+CI still runs the quality checks, package smoke tests, and Linux/macOS/Windows E2E tests on pushes and pull requests to `main`. Test reports are available as workflow artifacts. Marketplace/Open VSX/npm publishing, release uploads, hosted previews, and badge updates are disabled in this fork.
 
 ## Development Workflow
 
