@@ -192,6 +192,12 @@ components:
       additionalProperties: false
       required: [type, id]
       properties:
+        appearanceCustomized:
+          type: boolean
+        appearance:
+          oneOf:
+            - $ref: '#/components/schemas/CharacterAppearance'
+            - type: 'null'
         type:
           const: agentCreated
         providerId:
@@ -461,6 +467,12 @@ components:
       additionalProperties: false
       required: [type, id]
       properties:
+        appearanceCustomized:
+          type: boolean
+        appearance:
+          oneOf:
+            - $ref: '#/components/schemas/CharacterAppearance'
+            - type: 'null'
         type:
           const: agentTeamInfo
         id:
@@ -542,6 +554,24 @@ components:
               items:
                 type: string
 
+    CharacterAppearance:
+      type: object
+      additionalProperties: false
+      required: [head, body, clothes]
+      properties:
+        head:
+          type: integer
+          minimum: 0
+          maximum: 2
+        body:
+          type: integer
+          minimum: 0
+          maximum: 2
+        clothes:
+          type: integer
+          minimum: 0
+          maximum: 2
+
     CharacterSpritesLoaded:
       description: Pre-colored character sprite sets (6 palettes), sent once at startup.
       type: object
@@ -550,6 +580,10 @@ components:
       properties:
         type:
           const: characterSpritesLoaded
+        layeredCharacters:
+          type: array
+          items:
+            $ref: '#/components/schemas/CharacterSpriteSet'
         characters:
           type: array
           items:
@@ -1132,12 +1166,19 @@ components:
       type: object
       additionalProperties: false
       properties:
+        appearanceCustomized:
+          type: boolean
+          description: False only for an automatic choice still eligible for first-parent inheritance.
+        appearance:
+          oneOf:
+            - $ref: '#/components/schemas/CharacterAppearance'
+            - type: 'null'
         palette:
           type: integer
         hueShift:
           type: integer
         seatId:
-          type: string
+          type: [string, 'null']
 
     SeatAssignment:
       description: |
@@ -1147,6 +1188,12 @@ components:
       additionalProperties: false
       required: [palette, hueShift, seatId]
       properties:
+        appearanceCustomized:
+          type: boolean
+        appearance:
+          oneOf:
+            - $ref: '#/components/schemas/CharacterAppearance'
+            - type: 'null'
         palette:
           type: integer
         hueShift:

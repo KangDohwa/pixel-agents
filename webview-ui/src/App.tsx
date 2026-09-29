@@ -71,6 +71,7 @@ function App() {
     selectedAgent,
     agentTools,
     agentStatuses,
+    layeredCharactersAvailable,
     providers,
     agentProviders,
     agentUsage,
@@ -542,6 +543,9 @@ function App() {
       />
 
       <SettingsModal
+        officeState={officeState}
+        agents={agents}
+        layeredCharactersAvailable={layeredCharactersAvailable}
         isOpen={isSettingsOpen}
         onClose={() => setIsSettingsOpen(false)}
         isDebugMode={isDebugMode}

@@ -18,6 +18,8 @@ import * as os from 'os';
 import * as path from 'path';
 
 import type { StateAdapter } from '../../core/src/adapter.js';
+import { readAppearance } from '../../core/src/appearance.js';
+import type { AgentSeatMeta } from '../../core/src/messages.js';
 import type { PersistedAgent } from '../../core/src/schemas.js';
 import type { AdapterSettingKey, AdapterSettings, ConfigNamespace } from './configPersistence.js';
 import { ADAPTER_SETTING_KEYS, readConfig, writeConfig } from './configPersistence.js';
@@ -33,7 +35,7 @@ function settingNameOf(key: string): AdapterSettingKey | null {
 
 interface AdapterState {
   agents: PersistedAgent[];
-  seats: Record<string, { palette?: number; hueShift?: number; seatId?: string }>;
+  seats: Record<string, AgentSeatMeta>;
 }
 
 const EMPTY_STATE: AdapterState = { agents: [], seats: {} };
@@ -85,13 +87,34 @@ export class FileStateAdapter implements StateAdapter {
     this.writeState(state);
   }
 
-  loadSeats(): Record<string, { palette?: number; hueShift?: number; seatId?: string }> {
-    return this.readState().seats;
+  loadSeats(): Record<string, AgentSeatMeta> {
+    return Object.fromEntries(
+      Object.entries(this.readState().seats)
+        .filter(([, seat]) => seat && typeof seat === 'object')
+        .map(([id, seat]) => [
+          id,
+          {
+            ...seat,
+            ...(Object.hasOwn(seat, 'appearance')
+              ? { appearance: readAppearance(seat.appearance) }
+              : {}),
+          },
+        ]),
+    );
   }
 
-  saveSeats(seats: Record<string, { palette?: number; hueShift?: number; seatId?: string }>): void {
+  saveSeats(seats: Record<string, AgentSeatMeta>): void {
     const state = this.readState();
-    state.seats = seats;
+    // Partial startup snapshots must not erase agents still waiting for restore.
+    for (const [id, seat] of Object.entries(seats)) {
+      if (!/^\d+$/.test(id) || !seat || typeof seat !== 'object' || Array.isArray(seat)) continue;
+      state.seats[id] = {
+        ...seat,
+        ...(Object.hasOwn(seat, 'appearance')
+          ? { appearance: readAppearance(seat.appearance) }
+          : {}),
+      };
+    }
     this.writeState(state);
   }
 

@@ -99,7 +99,7 @@ export async function launchVSCode(
   const seedConfig = opts.seedConfig ?? {
     vscode: { alwaysShowLabels: true },
     standalone: { alwaysShowLabels: true },
-    hooksConsent: { claude: 'granted' },
+    hooksConsent: { claude: 'granted', gemini: 'declined' },
   };
   fs.writeFileSync(path.join(paDir, 'config.json'), JSON.stringify(seedConfig, null, 2));
   if (opts.seedLayout !== undefined) {

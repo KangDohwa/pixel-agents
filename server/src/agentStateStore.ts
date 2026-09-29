@@ -1,7 +1,9 @@
 import { EventEmitter } from 'node:events';
 import { appendFileSync } from 'node:fs';
+import { basename } from 'node:path';
 
 import type { StateAdapter } from '../../core/src/adapter.js';
+import { defaultAppearance } from '../../core/src/appearance.js';
 import type { AgentState, PersistedAgent } from './types.js';
 
 /**
@@ -114,6 +116,36 @@ export class AgentStateStore {
     const isNew = !this.agents.has(id);
     this.agents.set(id, agent);
     if (isNew) {
+      // Seats own appearance. Seed only new sessions; old saves remain Legacy.
+      const seats = this.adapter?.loadSeats();
+      if (
+        this.adapter &&
+        seats &&
+        !this.adapter
+          .loadAgents()
+          .some(
+            (saved) =>
+              saved.id === id &&
+              (saved.providerId ?? 'claude') === (agent.providerId ?? 'claude') &&
+              (saved.sessionId || basename(saved.jsonlFile, '.jsonl')) === agent.sessionId,
+          )
+      ) {
+        const parent = agent.leadAgentId;
+        const appearance =
+          parent !== undefined
+            ? (seats[String(parent)]?.appearance ?? null)
+            : defaultAppearance(id);
+        this.adapter.saveSeats({
+          ...seats,
+          [id]: {
+            ...seats[String(id)],
+            palette: agent.palette,
+            hueShift: agent.hueShift,
+            appearance,
+            appearanceCustomized: false,
+          },
+        });
+      }
       this.emitter.emit('agentAdded', id, agent);
     }
     return this;

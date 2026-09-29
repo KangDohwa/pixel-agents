@@ -1,14 +1,19 @@
 import { useRef, useState } from 'react';
 
 import { isSoundEnabled, setSoundEnabled } from '../notificationSound.js';
+import type { OfficeState } from '../office/engine/officeState.js';
 import { isBrowserRuntime } from '../runtime.js';
 import { transport } from '../transport/index.js';
+import { AppearancePicker } from './AppearancePicker.js';
 import { Button } from './ui/Button.js';
 import { Checkbox } from './ui/Checkbox.js';
 import { MenuItem } from './ui/MenuItem.js';
 import { Modal } from './ui/Modal.js';
 
 interface SettingsModalProps {
+  officeState: OfficeState;
+  agents: number[];
+  layeredCharactersAvailable: boolean;
   isOpen: boolean;
   onClose: () => void;
   isDebugMode: boolean;
@@ -40,6 +45,9 @@ interface SettingsModalProps {
 }
 
 export function SettingsModal({
+  officeState,
+  agents,
+  layeredCharactersAvailable,
   isOpen,
   onClose,
   isDebugMode,
@@ -65,7 +73,17 @@ export function SettingsModal({
   const [assetDirDraft, setAssetDirDraft] = useState('');
 
   return (
-    <Modal isOpen={isOpen} onClose={onClose} title="Settings">
+    <Modal
+      isOpen={isOpen}
+      onClose={onClose}
+      title="Settings"
+      className="max-h-[90vh] overflow-y-auto"
+    >
+      <AppearancePicker
+        officeState={officeState}
+        agents={agents}
+        available={layeredCharactersAvailable}
+      />
       {/* Open Sessions Folder opens an OS file manager — impossible in the browser. */}
       {!isBrowserRuntime && (
         <MenuItem

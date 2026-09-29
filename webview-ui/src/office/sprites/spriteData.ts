@@ -1,3 +1,5 @@
+import { appearanceIndex, readAppearance } from '../../../../core/src/appearance.js';
+import type { CharacterAppearance } from '../../../../core/src/messages.js';
 import type { ColorValue } from '../../components/ui/types.js';
 import { PALETTE_COUNT } from '../../constants.js';
 import { adjustSprite } from '../colorize.js';
@@ -38,9 +40,14 @@ interface LoadedCharacterData {
 }
 
 let loadedCharacters: LoadedCharacterData[] | null = null;
+let layeredCharacters: LoadedCharacterData[] = [];
 
 /** Set pre-colored character sprites loaded from PNG assets. Call this when characterSpritesLoaded message arrives. */
-export function setCharacterTemplates(data: LoadedCharacterData[]): void {
+export function setCharacterTemplates(
+  data: LoadedCharacterData[],
+  layered: LoadedCharacterData[] = [],
+): void {
+  layeredCharacters = layered.length === 27 ? layered : [];
   loadedCharacters = data;
   // Clear cache so sprites are rebuilt from loaded data
   spriteCache.clear();
@@ -115,16 +122,23 @@ function emptySprite(w: number, h: number): SpriteData {
   return rows;
 }
 
-export function getCharacterSprites(paletteIndex: number, hueShift = 0): CharacterSprites {
-  const cacheKey = `${paletteIndex}:${hueShift}`;
+export function getCharacterSprites(
+  paletteIndex: number,
+  hueShift = 0,
+  appearance?: CharacterAppearance | null,
+): CharacterSprites {
+  const selected = readAppearance(appearance);
+  const layered = selected ? layeredCharacters[appearanceIndex(selected)] : undefined;
+  const cacheKey = layered ? 'layer:' + appearanceIndex(selected!) : `${paletteIndex}:${hueShift}`;
   const cached = spriteCache.get(cacheKey);
   if (cached) return cached;
 
   let sprites: CharacterSprites;
 
-  if (loadedCharacters) {
+  if (layered || loadedCharacters?.length) {
     // Use pre-colored character sprites directly (no palette swapping)
-    const char = loadedCharacters[paletteIndex % loadedCharacters.length];
+    const index = Number.isInteger(paletteIndex) && paletteIndex >= 0 ? paletteIndex : 0;
+    const char = layered ?? loadedCharacters![index % loadedCharacters!.length];
     const d = char.down;
     const u = char.up;
     const rt = char.right;
@@ -178,7 +192,7 @@ export function getCharacterSprites(paletteIndex: number, hueShift = 0): Charact
   }
 
   // Apply hue shift if non-zero
-  if (hueShift !== 0) {
+  if (!layered && hueShift !== 0) {
     sprites = hueShiftSprites(sprites, hueShift);
   }
 

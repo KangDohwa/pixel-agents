@@ -1,3 +1,4 @@
+import type { CharacterAppearance } from '../../../core/src/messages.js';
 export {
   DEFAULT_COLS,
   DEFAULT_ROWS,
@@ -182,7 +183,10 @@ export interface Character {
   moveProgress: number;
   /** Current tool name for typing vs reading animation, or null */
   currentTool: string | null;
-  /** Palette index (0-5) */
+  /** Independent layered selection. Null or absent uses the legacy palette. */
+  appearance?: CharacterAppearance | null;
+  appearanceCustomized?: boolean;
+  /** Legacy/external palette index. */
   palette: number;
   /** Hue shift in degrees (0 = no shift, ≥45 for repeated palettes) */
   hueShift: number;

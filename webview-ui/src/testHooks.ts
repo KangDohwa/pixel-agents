@@ -1,3 +1,4 @@
+import type { CharacterAppearance } from '../../core/src/messages.js';
 import type { ColorValue } from './components/ui/types.js';
 import { OfficeState } from './office/engine/officeState.js';
 import { isGhostHeadlessAgentsEnabled } from './office/engine/renderer.js';
@@ -9,6 +10,8 @@ declare global {
       playedSounds?: Array<{ kind: string; at: number }>;
       getCharacters?: () => Array<{
         id: number;
+        appearance?: CharacterAppearance | null;
+        palette: number;
         matrixEffect: 'spawn' | 'despawn' | null;
         agentName?: string;
         bubbleType: 'permission' | 'waiting' | null;
@@ -123,6 +126,8 @@ export function installTestHooks(officeStateRef: { current: OfficeState | null }
     // which lives outside the agent map and joins only at the render seam.
     return os.getCharacters().map((ch) => ({
       id: ch.id,
+      appearance: ch.appearance ?? null,
+      palette: ch.palette,
       matrixEffect: ch.matrixEffect,
       agentName: ch.agentName,
       bubbleType: ch.bubbleType,

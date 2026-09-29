@@ -123,8 +123,11 @@ export class PixelAgentsViewProvider implements vscode.WebviewViewProvider {
     this.adapter = adapter;
     this.store.setAdapter(this.adapter);
     this.store.on('agentAdded', (id, agent) => {
+      const seat = this.adapter.loadSeats()[String(id)];
       this.sendOrBuffer({
         type: 'agentCreated',
+        appearance: seat?.appearance ?? null,
+        appearanceCustomized: seat?.appearanceCustomized,
         providerId: agent.providerId ?? 'claude',
         id,
         folderName: agent.folderName,

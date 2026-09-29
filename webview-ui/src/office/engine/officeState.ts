@@ -1,3 +1,5 @@
+import { readAppearance } from '../../../../core/src/appearance.js';
+import type { CharacterAppearance, SeatAssignment } from '../../../../core/src/messages.js';
 import { pickDiversePalette } from '../../../../core/src/paletteUtils.js';
 import {
   AUTO_ON_FACING_DEPTH,
@@ -711,6 +713,7 @@ export class OfficeState {
     ch.tileRow = spawn.row;
     // Face the same direction as the parent agent
     if (parentCh) ch.dir = parentCh.dir;
+    ch.appearance = parentCh?.appearance ?? null;
     ch.isSubagent = true;
     ch.parentAgentId = parentAgentId;
     startMatrixEffect(ch, 'spawn');
@@ -1143,18 +1146,31 @@ export class OfficeState {
     }
   }
 
+  setAgentAppearance(id: number, value: CharacterAppearance | null, customized = true): void {
+    const ch = this.characters.get(id);
+    if (!ch) return;
+    ch.appearance = readAppearance(value);
+    ch.appearanceCustomized = customized;
+    for (const child of this.characters.values()) {
+      if (child.isSubagent && child.parentAgentId === id) child.appearance = ch.appearance;
+    }
+  }
+
   /** The `saveAgentSeats` payload: palette, hue and seat for every agent worth
    *  restoring. Sub-agents are excluded because they are derived state the
    *  runtime re-materializes, and the greeter never reaches here at all —
    *  it is not in `characters`. */
-  getPersistableSeats(): Record<
-    number,
-    { palette: number; hueShift: number; seatId: string | null }
-  > {
-    const seats: Record<number, { palette: number; hueShift: number; seatId: string | null }> = {};
+  getPersistableSeats(): Record<number, SeatAssignment> {
+    const seats: Record<number, SeatAssignment> = {};
     for (const ch of this.characters.values()) {
       if (ch.isSubagent) continue;
-      seats[ch.id] = { palette: ch.palette, hueShift: ch.hueShift, seatId: ch.seatId };
+      seats[ch.id] = {
+        palette: ch.palette,
+        hueShift: ch.hueShift,
+        seatId: ch.seatId,
+        appearance: ch.appearance ?? null,
+        appearanceCustomized: ch.appearanceCustomized !== false,
+      };
     }
     return seats;
   }

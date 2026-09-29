@@ -183,4 +183,18 @@ describe('AgentRuntime -- restore preserves palette/hueShift', () => {
     expect(agent?.palette).toBeLessThan(6);
     expect(agent?.hueShift).toBe(0);
   });
+
+  it('shutdown preserves Claude identities for restoring the same seat appearance', () => {
+    const store = new AgentStateStore();
+    const adapter = createMockAdapter();
+    store.setAdapter(adapter);
+    runtime = new AgentRuntime(store, claudeProvider);
+    store.set(42, createTestAgent({ id: 42, jsonlFile: jsonlPath, projectDir: tmpDir }));
+    store.persist();
+    runtime.dispose();
+    expect(adapter.loadAgents().map((agent) => agent.id)).toEqual([42]);
+    runtime.dispose();
+    expect(adapter.loadAgents().map((agent) => agent.id)).toEqual([42]);
+    runtime = undefined;
+  });
 });

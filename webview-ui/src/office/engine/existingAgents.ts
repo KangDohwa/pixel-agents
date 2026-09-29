@@ -11,8 +11,12 @@
 // Depending on layoutLoaded always arriving last stranded restored agents on any
 // surface that sends layout first (e.g. the VS Code no-assets path), issue #334.
 
+import type { CharacterAppearance } from '../../../../core/src/messages.js';
+
 /** Per-agent seat metadata carried by the existingAgents message. */
 export interface ExistingAgentMeta {
+  appearanceCustomized?: boolean;
+  appearance?: CharacterAppearance | null;
   palette?: number;
   hueShift?: number;
   seatId?: string;
@@ -20,7 +24,9 @@ export interface ExistingAgentMeta {
 
 /** An agent buffered until the layout (and its seats) has been built. */
 export interface PendingAgent {
+  appearanceCustomized?: boolean;
   id: number;
+  appearance?: CharacterAppearance | null;
   palette?: number;
   hueShift?: number;
   seatId?: string;
@@ -38,6 +44,11 @@ export interface ExistingAgentsOffice {
     preferredSeatId?: string,
     skipSpawnEffect?: boolean,
     folderName?: string,
+  ) => void;
+  setAgentAppearance: (
+    id: number,
+    appearance: CharacterAppearance | null,
+    customized?: boolean,
   ) => void;
   setHeadless: (id: number, headless: boolean) => void;
 }
@@ -63,6 +74,8 @@ export function reconcileExistingAgents(
     const m = meta[id];
     const p: PendingAgent = {
       id,
+      appearance: m?.appearance ?? null,
+      appearanceCustomized: m?.appearanceCustomized,
       palette: m?.palette,
       hueShift: m?.hueShift,
       seatId: m?.seatId,
@@ -75,6 +88,7 @@ export function reconcileExistingAgents(
         if (p.isHeadless) os.setHeadless(p.id, true);
         addedDirectly = true;
       }
+      os.setAgentAppearance(p.id, p.appearance ?? null, p.appearanceCustomized);
     } else {
       pending.push(p);
     }

@@ -8,6 +8,10 @@
  * Only imported in browser runtime; tree-shaken from VS Code webview runtime.
  */
 
+import {
+  composeLayeredCharacters,
+  type LayerManifest,
+} from '../../core/src/assets/characterLayers.ts';
 import { rgbaToHex } from '../../core/src/assets/colorUtils.ts';
 import {
   CHAR_FRAME_H,
@@ -28,6 +32,7 @@ import type {
 
 interface MockPayload {
   characters: CharacterDirectionSprites[];
+  layeredCharacters: CharacterDirectionSprites[];
   floorSprites: string[][][];
   wallSets: string[][][][];
   carpetSets: string[][][][];
@@ -110,6 +115,27 @@ async function fetchJsonOptional<T>(url: string): Promise<T | null> {
 
 function getIndexedAssetPath(kind: 'characters' | 'floors' | 'walls', relPath: string): string {
   return relPath.startsWith(`${kind}/`) ? relPath : `${kind}/${relPath}`;
+}
+
+async function loadLayeredCharacters(base: string): Promise<CharacterDirectionSprites[]> {
+  const decoded = import.meta.env.DEV
+    ? await fetchJsonOptional<CharacterDirectionSprites[]>(
+        base + 'assets/decoded/layered-characters.json',
+      )
+    : null;
+  if (decoded) return decoded;
+  try {
+    const dir = base + 'assets/characters/layered/';
+    const manifest = await fetchJsonOptional<LayerManifest>(dir + 'manifest.json');
+    if (!manifest) return [];
+    const [heads, bodies, clothes] = await Promise.all(
+      ['heads', 'bodies', 'clothes'].map((name) => decodePng(dir + name + '.png')),
+    );
+    return composeLayeredCharacters({ heads, bodies, clothes }, manifest);
+  } catch (error) {
+    console.warn('[Character layers] Using legacy sprites:', error);
+    return [];
+  }
 }
 
 async function decodeCharactersFromPng(
@@ -230,6 +256,7 @@ export async function initBrowserMock(): Promise<void> {
       : null) ?? [];
 
   mockPayload = {
+    layeredCharacters: await loadLayeredCharacters(base),
     characters,
     floorSprites,
     wallSets,
@@ -256,6 +283,7 @@ export function dispatchMockMessages(): void {
 
   const {
     characters,
+    layeredCharacters,
     floorSprites,
     wallSets,
     carpetSets,
@@ -271,7 +299,7 @@ export function dispatchMockMessages(): void {
   // Must match the load order defined in CLAUDE.md:
   // characterSpritesLoaded -> floorTilesLoaded -> wallTilesLoaded -> carpetTilesLoaded
   //   -> furnitureAssetsLoaded -> layoutLoaded
-  dispatch({ type: 'characterSpritesLoaded', characters });
+  dispatch({ type: 'characterSpritesLoaded', characters, layeredCharacters });
   dispatch({ type: 'floorTilesLoaded', sprites: floorSprites });
   dispatch({ type: 'wallTilesLoaded', sets: wallSets });
   dispatch({ type: 'carpetTilesLoaded', sets: carpetSets });

@@ -4,7 +4,6 @@
  * Scans assets/furniture/ subdirectories, reads each manifest.json,
  * and loads all PNG files into SpriteData format for use in the webview.
  */
-
 import * as fs from 'fs';
 import * as path from 'path';
 import type * as vscode from 'vscode';
@@ -15,6 +14,7 @@ import {
   MAX_PET_PNG_SIZE,
   WALL_BITMASK_COUNT,
 } from '../../core/src/assets/constants.js';
+import { decodeLayeredCharacters } from '../../core/src/assets/loader.js';
 import type {
   FurnitureAsset,
   FurnitureManifest,
@@ -469,6 +469,7 @@ export function sendFloorTilesToWebview(
 // ── Character sprite loading ────────────────────────────────
 
 export interface LoadedCharacterSprites {
+  layeredCharacters?: CharacterDirectionSprites[];
   /** Pre-colored characters, each with 7 frames per direction */
   characters: CharacterDirectionSprites[];
 }
@@ -477,7 +478,7 @@ export function mergeCharacterSprites(
   a: LoadedCharacterSprites,
   b: LoadedCharacterSprites,
 ): LoadedCharacterSprites {
-  return { characters: [...a.characters, ...b.characters] };
+  return { ...a, characters: [...a.characters, ...b.characters] };
 }
 
 /**
@@ -505,7 +506,10 @@ export async function loadCharacterSprites(
     console.log(
       `[AssetLoader] ✅ Loaded ${characters.length} character sprites (${CHAR_FRAMES_PER_ROW} frames × 3 directions each)`,
     );
-    return { characters };
+    return {
+      characters,
+      layeredCharacters: decodeLayeredCharacters(path.join(assetsRoot, 'assets')),
+    };
   } catch (err) {
     console.error(
       `[AssetLoader] ❌ Error loading character sprites: ${err instanceof Error ? err.message : err}`,
@@ -587,7 +591,7 @@ export function sendCharacterSpritesToWebview(
 ): void {
   webview.postMessage({
     type: 'characterSpritesLoaded',
-    characters: charSprites.characters,
+    ...charSprites,
   });
   console.log(`📤 Sent ${charSprites.characters.length} character sprites to webview`);
 }

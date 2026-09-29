@@ -8,7 +8,9 @@
 
 import * as fs from 'fs';
 import * as path from 'path';
+import { PNG } from 'pngjs';
 
+import { composeLayeredCharacters, type LayerManifest } from './characterLayers.js';
 import {
   decodeCharacterPng,
   decodeFloorPng,
@@ -86,4 +88,23 @@ export function decodeAllFurniture(
     }
   }
   return sprites;
+}
+
+/** Optional bundled layers; corrupt/missing files leave legacy sprites available. */
+export function decodeLayeredCharacters(assetsDir: string): CharacterDirectionSprites[] {
+  try {
+    const dir = path.join(assetsDir, 'characters', 'layered');
+    if (!fs.existsSync(path.join(dir, 'manifest.json'))) return [];
+    const manifest = JSON.parse(
+      fs.readFileSync(path.join(dir, 'manifest.json'), 'utf8'),
+    ) as LayerManifest;
+    const read = (name: string) => PNG.sync.read(fs.readFileSync(path.join(dir, name + '.png')));
+    return composeLayeredCharacters(
+      { heads: read('heads'), bodies: read('bodies'), clothes: read('clothes') },
+      manifest,
+    );
+  } catch (error) {
+    console.warn('[Character layers] Using legacy sprites:', error);
+    return [];
+  }
 }

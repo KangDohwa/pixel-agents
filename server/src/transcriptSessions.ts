@@ -251,6 +251,13 @@ export class TranscriptSessions {
           );
         const parent = snapshot.parentSessionId && this.find(provider.id, snapshot.parentSessionId);
         if (parent && agent.leadAgentId !== parent.id) {
+          const adapter = this.store.getAdapter();
+          const seats = adapter?.loadSeats();
+          const seat = seats?.[String(agent.id)];
+          if (agent.leadAgentId === undefined && seat?.appearanceCustomized === false) {
+            seat.appearance = seats?.[String(parent.id)]?.appearance ?? null;
+            adapter?.saveSeats({ [agent.id]: seat });
+          }
           agent.leadAgentId = parent.id;
           agent.agentName = `${provider.displayName} subagent`;
           this.store.broadcast({
@@ -258,6 +265,12 @@ export class TranscriptSessions {
             id: agent.id,
             leadAgentId: parent.id,
             agentName: agent.agentName,
+            ...(seat
+              ? {
+                  appearance: seat.appearance ?? null,
+                  appearanceCustomized: seat.appearanceCustomized,
+                }
+              : {}),
           });
         }
       }

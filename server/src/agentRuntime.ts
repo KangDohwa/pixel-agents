@@ -573,6 +573,10 @@ export class AgentRuntime {
 
   /** Clean up all scanners, timers, and agents. Called on shutdown. */
   dispose(): void {
+    // Cleanup removes live Claude agents too. Keep their saved identities so seats
+    // (including appearance) still belong to the same sessions after a restart.
+    if (this.store.size > 0) this.store.persist();
+    const persisted = this.store.loadPersistedAgents();
     this.transcripts.dispose();
     this.hookEventHandler.dispose();
     this.subagentWatch.dispose();
@@ -597,5 +601,6 @@ export class AgentRuntime {
       if (providerId && providerById(providerId)?.transcripts) continue;
       this.removeAgent(id);
     }
+    this.store.getAdapter()?.saveAgents(persisted);
   }
 }

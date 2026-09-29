@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 
+import { readAppearance } from '../../../core/src/appearance.js';
 import type { HooksConsentRequest } from '../../../core/src/messages.js';
 import type { TranscriptSnapshot } from '../../../core/src/provider.js';
 import { playDoneSound, playPermissionSound, setSoundEnabled } from '../notificationSound.js';
@@ -70,6 +71,7 @@ export interface WorkspaceFolder {
 }
 
 interface ExtensionMessageState {
+  layeredCharactersAvailable: boolean;
   providers: { id: string; displayName: string; hooks: boolean }[];
   agentProviders: Record<number, string>;
   agentUsage: Record<number, TranscriptSnapshot['usage']>;
@@ -125,6 +127,7 @@ export function useExtensionMessages(
   onLayoutLoaded?: (layout: OfficeLayout) => void,
   isEditDirty?: () => boolean,
 ): ExtensionMessageState {
+  const [layeredCharactersAvailable, setLayeredCharactersAvailable] = useState(false);
   const [providers, setProviders] = useState<{ id: string; displayName: string; hooks: boolean }[]>(
     [],
   );
@@ -243,6 +246,7 @@ export function useExtensionMessages(
         // Add buffered agents now that layout (and seats) are correct
         for (const p of pendingAgents) {
           os.addAgent(p.id, p.palette, p.hueShift, p.seatId, true, p.folderName);
+          os.setAgentAppearance(p.id, p.appearance ?? null, p.appearanceCustomized);
           if (p.isHeadless) os.setHeadless(p.id, true);
         }
         pendingAgents = [];
@@ -300,6 +304,7 @@ export function useExtensionMessages(
             os.setHeadless(id, true);
           }
         }
+        os.setAgentAppearance(id, readAppearance(msg.appearance), msg.appearanceCustomized);
         saveAgentSeats(os);
       } else if (msg.type === 'agentClosed') {
         const id = msg.id as number;
@@ -650,7 +655,9 @@ export function useExtensionMessages(
           right: string[][][];
         }>;
         console.log(`[Webview] Received ${characters.length} pre-colored character sprites`);
-        setCharacterTemplates(characters);
+        const layered = (msg.layeredCharacters ?? []) as typeof characters;
+        setCharacterTemplates(characters, layered);
+        setLayeredCharactersAvailable(layered.length === 27);
       } else if (msg.type === 'petSpritesLoaded') {
         const pets = msg.pets;
         if (!Array.isArray(pets)) {
@@ -767,6 +774,10 @@ export function useExtensionMessages(
         }
       } else if (msg.type === 'agentTeamInfo') {
         const id = msg.id as number;
+        if ('appearance' in msg) {
+          os.setAgentAppearance(id, readAppearance(msg.appearance), msg.appearanceCustomized);
+          saveAgentSeats(os);
+        }
         os.setTeamInfo(
           id,
           msg.teamName as string | undefined,
@@ -802,6 +813,7 @@ export function useExtensionMessages(
   }, [subagentTools, subagentCharacters, getOfficeState]);
 
   return {
+    layeredCharactersAvailable,
     providers,
     agentProviders,
     agentUsage,

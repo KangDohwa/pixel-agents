@@ -12,11 +12,13 @@ import {
   decodeAllFloors,
   decodeAllFurniture,
   decodeAllWalls,
+  decodeLayeredCharacters,
 } from '../core/src/assets/loader.ts';
 
 // ── Decoded asset cache (invalidated on file change) ─────────────────────────
 
 interface DecodedCache {
+  layeredCharacters: ReturnType<typeof decodeLayeredCharacters> | null;
   characters: ReturnType<typeof decodeAllCharacters> | null;
   floors: ReturnType<typeof decodeAllFloors> | null;
   walls: ReturnType<typeof decodeAllWalls> | null;
@@ -35,6 +37,7 @@ function browserMockAssetsPlugin(): Plugin {
 
   const cache: DecodedCache = {
     characters: null,
+    layeredCharacters: null,
     floors: null,
     walls: null,
     carpets: null,
@@ -43,6 +46,7 @@ function browserMockAssetsPlugin(): Plugin {
 
   function clearCache(): void {
     cache.characters = null;
+    cache.layeredCharacters = null;
     cache.floors = null;
     cache.walls = null;
     cache.carpets = null;
@@ -68,6 +72,11 @@ function browserMockAssetsPlugin(): Plugin {
         res.end(JSON.stringify(buildAssetIndex(assetsDir)));
       });
 
+      server.middlewares.use(`${base}/assets/decoded/layered-characters.json`, (_req, res) => {
+        cache.layeredCharacters ??= decodeLayeredCharacters(assetsDir);
+        res.setHeader('Content-Type', 'application/json');
+        res.end(JSON.stringify(cache.layeredCharacters));
+      });
       // Pre-decoded sprites (new — eliminates browser-side PNG decoding)
       server.middlewares.use(`${base}/assets/decoded/characters.json`, (_req, res) => {
         cache.characters ??= decodeAllCharacters(assetsDir);

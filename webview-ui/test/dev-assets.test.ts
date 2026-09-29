@@ -63,6 +63,12 @@ async function verifyAssetUrls(baseUrl: string, basePath: string): Promise<void>
   );
 
   await assertUrlOk(assetUrl(baseUrl, basePath, 'decoded/characters.json'));
+  const layers = await fetchJson<unknown[]>(
+    assetUrl(baseUrl, basePath, 'decoded/layered-characters.json'),
+  );
+  assert.equal(layers.length, 27);
+  for (const file of ['heads.png', 'bodies.png', 'clothes.png', 'manifest.json'])
+    await assertUrlOk(assetUrl(baseUrl, basePath, 'characters/layered/' + file));
   await assertUrlOk(assetUrl(baseUrl, basePath, 'decoded/floors.json'));
   await assertUrlOk(assetUrl(baseUrl, basePath, 'decoded/walls.json'));
   await assertUrlOk(assetUrl(baseUrl, basePath, 'decoded/furniture.json'));

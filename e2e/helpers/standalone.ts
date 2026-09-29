@@ -35,6 +35,8 @@ export interface StandaloneSession {
 }
 
 export interface LaunchStandaloneOptions {
+  /** Run a copied build when testing damaged assets without changing the repository. */
+  cliPath?: string;
   /** Reuse an existing isolated HOME (for cross-surface multi-server tests).
    *  A supplied directory is never removed by standalone cleanup. */
   homeDir?: string;
@@ -98,22 +100,25 @@ async function waitForHttpOk(url: string): Promise<void> {
  * doesn't take a --workspace-dir flag.
  */
 function spawnStandaloneHost(args: {
+  cliPath?: string;
   homeDir: string;
   hostPort: number;
   workspaceDir: string;
 }): ChildProcessWithoutNullStreams {
-  if (!fs.existsSync(STANDALONE_CLI)) {
+  const cliPath = args.cliPath ?? STANDALONE_CLI;
+  if (!fs.existsSync(cliPath)) {
     throw new Error(
-      `Standalone CLI not built at ${STANDALONE_CLI}. Run 'npm run compile' before standalone e2e tests.`,
+      `Standalone CLI not built at ${cliPath}. Run 'npm run compile' before standalone e2e tests.`,
     );
   }
   return spawn(
     process.execPath,
-    [STANDALONE_CLI, '--port', args.hostPort.toString(), '--host', '127.0.0.1'],
+    [cliPath, '--port', args.hostPort.toString(), '--host', '127.0.0.1'],
     {
       cwd: args.workspaceDir,
       env: {
         ...process.env,
+        NODE_PATH: path.resolve(REPO_ROOT, 'node_modules'),
         HOME: args.homeDir,
         USERPROFILE: args.homeDir,
         CODEX_HOME: path.join(args.homeDir, '.codex'),
@@ -254,7 +259,12 @@ export async function launchStandalone(
   let hostStdout = '';
   let hostStderr = '';
   function spawnAndAttach(): ChildProcessWithoutNullStreams {
-    const proc = spawnStandaloneHost({ homeDir: tmpHome, hostPort, workspaceDir });
+    const proc = spawnStandaloneHost({
+      homeDir: tmpHome,
+      hostPort,
+      workspaceDir,
+      cliPath: options.cliPath,
+    });
     proc.stdout.on('data', (chunk) => {
       hostStdout += chunk.toString();
     });

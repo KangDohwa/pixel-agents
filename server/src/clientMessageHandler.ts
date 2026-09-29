@@ -1,3 +1,4 @@
+import type { AgentSeatMeta } from '../../core/src/messages.js';
 import type { HookProvider } from '../../core/src/provider.js';
 import { resendAgentActivity } from './agentActivityResend.js';
 import { buildAgentDiagnostics } from './agentDiagnostics.js';
@@ -123,10 +124,7 @@ export function handleClientMessage(
 
     case 'saveAgentSeats':
       if (msg.seats) {
-        const seats = msg.seats as Record<
-          string,
-          { palette?: number; hueShift?: number; seatId?: string }
-        >;
+        const seats = msg.seats as Record<string, AgentSeatMeta>;
         // Sync palette/hueShift back to AgentState so existingAgents stays
         // consistent across reconnects. Validate ranges to keep a remote
         // client (or a hand-edited payload) from corrupting the stored
@@ -370,7 +368,7 @@ function handleWebviewReady(send: WsSend, ctx: ClientMessageContext): void {
   // 2. Assets (from server cache, loaded at startup via pngjs)
   if (cache) {
     if (cache.characters) {
-      send({ type: 'characterSpritesLoaded', characters: cache.characters.characters });
+      send({ type: 'characterSpritesLoaded', ...cache.characters });
     }
     if (cache.pets) {
       send({
@@ -483,7 +481,7 @@ function handleWebviewReady(send: WsSend, ctx: ClientMessageContext): void {
   const folderNames: Record<number, string> = {};
   const externalAgents: Record<number, boolean> = {};
   const persistedSeats = adapter?.loadSeats() ?? {};
-  const agentMeta: Record<number, { palette?: number; hueShift?: number; seatId?: string }> = {};
+  const agentMeta: Record<number, AgentSeatMeta> = {};
   for (const [id, agent] of store) {
     agentIds.push(id);
     if (agent.folderName) {
@@ -497,6 +495,8 @@ function handleWebviewReady(send: WsSend, ctx: ClientMessageContext): void {
       palette: agent.palette,
       hueShift: agent.hueShift,
       seatId: persisted?.seatId,
+      appearance: persisted?.appearance ?? null,
+      appearanceCustomized: persisted?.appearanceCustomized,
     };
   }
   send({

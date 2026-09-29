@@ -170,8 +170,11 @@ function registerWebSocketRoute(app: FastifyInstance, options: HttpServerOptions
 
     // Pipe store events to WebSocket client
     const onAgentAdded = (id: number, agent: AgentState) => {
+      const seat = store.getAdapter()?.loadSeats()[String(id)];
       safeSend(socket, {
         type: 'agentCreated',
+        appearance: seat?.appearance ?? null,
+        appearanceCustomized: seat?.appearanceCustomized,
         providerId: agent.providerId ?? 'claude',
         id,
         folderName: agent.folderName,

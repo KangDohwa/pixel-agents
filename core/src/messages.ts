@@ -78,6 +78,8 @@ export interface ProviderSummary {
 }
 
 export interface AgentCreated {
+  appearanceCustomized?: boolean;
+  appearance?: CharacterAppearance | null;
   type: 'agentCreated';
   providerId?: string;
   id: number;
@@ -85,6 +87,12 @@ export interface AgentCreated {
   isExternal?: boolean;
   palette?: number;
   hueShift?: number;
+}
+
+export interface CharacterAppearance {
+  head: number;
+  body: number;
+  clothes: number;
 }
 
 export interface AgentClosed {
@@ -107,9 +115,11 @@ export interface ExistingAgents {
 }
 
 export interface AgentSeatMeta {
+  appearanceCustomized?: boolean;
+  appearance?: CharacterAppearance | null;
   palette?: number;
   hueShift?: number;
-  seatId?: string;
+  seatId?: string | null;
 }
 
 export interface AgentStatus {
@@ -199,6 +209,8 @@ export interface SubagentToolPermission {
 }
 
 export interface AgentTeamInfo {
+  appearanceCustomized?: boolean;
+  appearance?: CharacterAppearance | null;
   type: 'agentTeamInfo';
   id: number;
   teamName?: string;
@@ -252,6 +264,7 @@ export interface FurnitureAssetMessage {
 
 export interface CharacterSpritesLoaded {
   type: 'characterSpritesLoaded';
+  layeredCharacters?: CharacterSpriteSet[];
   characters: CharacterSpriteSet[];
 }
 
@@ -369,6 +382,8 @@ export interface SaveAgentSeats {
 }
 
 export interface SeatAssignment {
+  appearanceCustomized?: boolean;
+  appearance?: CharacterAppearance | null;
   palette: number;
   hueShift: number;
   seatId: string | null;

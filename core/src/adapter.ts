@@ -10,6 +10,7 @@
  * interface -- it's already host-agnostic (plain fs I/O in layoutPersistence.ts).
  */
 
+import type { AgentSeatMeta } from './messages.js';
 import type { PersistedAgent } from './schemas.js';
 
 export interface StateAdapter {
@@ -18,8 +19,8 @@ export interface StateAdapter {
   loadAgents(): PersistedAgent[];
   saveAgents(agents: PersistedAgent[]): void;
 
-  loadSeats(): Record<string, { palette?: number; hueShift?: number; seatId?: string }>;
-  saveSeats(seats: Record<string, { palette?: number; hueShift?: number; seatId?: string }>): void;
+  loadSeats(): Record<string, AgentSeatMeta>;
+  saveSeats(seats: Record<string, AgentSeatMeta>): void;
 
   // ── User-level settings (shared file, namespaced per adapter) ─────
 

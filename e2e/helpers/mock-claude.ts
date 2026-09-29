@@ -303,9 +303,17 @@ function getMockClaudeBinaryPath(tmpHome: string): string {
  * is unset so a stale host value can't win.
  */
 export function applyMockHomeEnv(base: NodeJS.ProcessEnv, tmpHome: string): NodeJS.ProcessEnv {
-  const env: NodeJS.ProcessEnv = { ...base, HOME: tmpHome };
+  // Provider overrides win over homedir(), so isolate them for every caller,
+  // including Electron and detached mock processes.
+  const env: NodeJS.ProcessEnv = {
+    ...base,
+    HOME: tmpHome,
+    USERPROFILE: tmpHome,
+    CODEX_HOME: path.join(tmpHome, '.codex'),
+    GEMINI_CLI_HOME: tmpHome,
+    PIXEL_AGENTS_DEBUG_LOG: path.join(tmpHome, '.pixel-agents', 'debug.log'),
+  };
   if (process.platform === 'win32') {
-    env.USERPROFILE = tmpHome;
     delete env.HOMEDRIVE;
     delete env.HOMEPATH;
   }

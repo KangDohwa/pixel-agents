@@ -1,0 +1,5 @@
+Layered character artwork
+
+heads.png, bodies.png and clothes.png are separate generated source images made for this fork with OpenAI image generation. They are not edits or slices of the legacy Metro City character sheets, or extracted artwork from the reference games.
+
+manifest.json records the measured source rectangles, common scale and accepted anchors. The app composes 27 combinations and articulates them at load time. Existing character artwork and its attribution are unchanged.
