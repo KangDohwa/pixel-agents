@@ -18,10 +18,6 @@ const REPO_ROOT = path.resolve(SCRIPT_DIR, '..');
 const METADATA_FILE = 'package-metadata.json';
 const START_TIMEOUT_MS = 20_000;
 
-function npmCommand() {
-  return process.platform === 'win32' ? 'npm.cmd' : 'npm';
-}
-
 function parseArgs(argv) {
   let outputDir = null;
   let skipBuild = false;
@@ -40,7 +36,13 @@ function parseArgs(argv) {
 }
 
 async function execNpm(args, options = {}) {
-  return await execFileAsync(npmCommand(), args, {
+  // Run npm's JavaScript entry point: execFile cannot execute npm.cmd on Windows.
+  const npmCli =
+    process.env.npm_execpath ||
+    (process.platform === 'win32'
+      ? path.join(path.dirname(process.execPath), 'node_modules/npm/bin/npm-cli.js')
+      : null);
+  return await execFileAsync(npmCli ? process.execPath : 'npm', npmCli ? [npmCli, ...args] : args, {
     cwd: REPO_ROOT,
     env: { ...process.env, HUSKY: '0' },
     maxBuffer: 20 * 1024 * 1024,
@@ -98,6 +100,16 @@ async function verifyInstalledTarball(tarballPath) {
   const smokeRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'pixel-agents-npm-smoke-'));
   const smokeHome = path.join(smokeRoot, 'home');
   const smokeProject = path.join(smokeRoot, 'project');
+  const smokeEnv = {
+    ...process.env,
+    HUSKY: '0',
+    HOME: smokeHome,
+    USERPROFILE: smokeHome,
+    CODEX_HOME: path.join(smokeHome, '.codex'),
+    GEMINI_CLI_HOME: smokeHome,
+    PIXEL_AGENTS_DEBUG_LOG: path.join(smokeHome, 'debug.log'),
+    npm_config_userconfig: path.join(smokeHome, '.npmrc'),
+  };
   fs.mkdirSync(smokeHome, { recursive: true });
   fs.mkdirSync(smokeProject, { recursive: true });
   // Without recorded consent the CLI (rightly) starts with no hooks installed
@@ -123,6 +135,7 @@ async function verifyInstalledTarball(tarballPath) {
   try {
     await execNpm(['install', '--ignore-scripts', '--no-audit', '--no-fund', tarballPath], {
       cwd: smokeProject,
+      env: smokeEnv,
     });
 
     const installedRoot = path.join(smokeProject, 'node_modules', 'pixel-agents');
@@ -132,6 +145,12 @@ async function verifyInstalledTarball(tarballPath) {
     if (installedManifest.bin?.['pixel-agents'] !== './dist/cli.js') {
       throw new Error('Installed package has an unexpected pixel-agents bin entry');
     }
+    const expectedVersion = JSON.parse(
+      fs.readFileSync(path.join(REPO_ROOT, 'package.json'), 'utf-8'),
+    ).version;
+    if (installedManifest.version !== expectedVersion) {
+      throw new Error(`Installed package version does not match ${expectedVersion}`);
+    }
 
     const installedCli = path.join(installedRoot, 'dist', 'cli.js');
     const firstLine = fs.readFileSync(installedCli, 'utf-8').split('\n', 1)[0];
@@ -139,16 +158,9 @@ async function verifyInstalledTarball(tarballPath) {
       throw new Error(`Installed CLI is missing its Node shebang: ${firstLine}`);
     }
 
-    const installedBin = path.join(
-      smokeProject,
-      'node_modules',
-      '.bin',
-      process.platform === 'win32' ? 'pixel-agents.cmd' : 'pixel-agents',
-    );
-    const help = await execFileAsync(installedBin, ['--help'], {
+    const help = await execNpm(['exec', '--offline', '--no', '--', 'pixel-agents', '--help'], {
       cwd: smokeProject,
-      env: { ...process.env, HOME: smokeHome, USERPROFILE: smokeHome },
-      shell: process.platform === 'win32',
+      env: smokeEnv,
     });
     if (!help.stdout.includes('Usage: pixel-agents')) {
       throw new Error('Installed pixel-agents bin did not print CLI help');
@@ -160,7 +172,7 @@ async function verifyInstalledTarball(tarballPath) {
       [installedCli, '--port', port.toString(), '--host', '127.0.0.1'],
       {
         cwd: smokeProject,
-        env: { ...process.env, HOME: smokeHome, USERPROFILE: smokeHome },
+        env: smokeEnv,
         stdio: ['ignore', 'pipe', 'pipe'],
       },
     );
@@ -217,7 +229,7 @@ async function verifyInstalledTarball(tarballPath) {
       throw new Error('Claude hook settings do not reference the installed hook script');
     }
 
-    return { assetCounts: counts.slice(1).map(Number), port };
+    return { version: installedManifest.version, assetCounts: counts.slice(1).map(Number), port };
   } finally {
     if (child) await stopChild(child);
     fs.rmSync(smokeRoot, { recursive: true, force: true });

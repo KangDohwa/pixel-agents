@@ -57,7 +57,7 @@ test('validates release tag, ref, repository, and monotonic version', () => {
   const manifest = {
     name: 'pixel-agents',
     version: '1.4.0',
-    repository: { url: 'https://github.com/pixel-agents-hq/pixel-agents' },
+    repository: { url: 'https://github.com/KangDohwa/pixel-agents' },
   };
   assert.doesNotThrow(() =>
     validateReleaseIdentity({
@@ -66,6 +66,19 @@ test('validates release tag, ref, repository, and monotonic version', () => {
       ref: 'refs/tags/v1.4.0',
       latestVersion: '1.0.2',
     }),
+  );
+  assert.throws(
+    () =>
+      validateReleaseIdentity({
+        manifest: {
+          ...manifest,
+          repository: { url: 'https://github.com/pixel-agents-hq/pixel-agents' },
+        },
+        releaseTag: 'v1.4.0',
+        ref: 'refs/tags/v1.4.0',
+        latestVersion: '1.0.2',
+      }),
+    /Expected repository/,
   );
   assert.throws(
     () =>

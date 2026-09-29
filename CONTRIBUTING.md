@@ -59,7 +59,7 @@ code --install-extension ./pixel-agents-local.vsix --force
 npm install --global ./pixel-agents-<version>.tgz
 ```
 
-The package identity is unchanged, so installing the VSIX updates any existing `pablodelucca.pixel-agents` extension in that VS Code target. Use a separate VS Code extensions directory if you want to keep your regular installation separate.
+The personal VSIX uses the extension ID `KangDohwa.pixel-agents`, so it installs separately from the original `pablodelucca.pixel-agents` extension in that VS Code target.
 
 CI still runs the quality checks, package smoke tests, and Linux/macOS/Windows E2E tests on pushes and pull requests to `main`. Test reports are available as workflow artifacts. Marketplace/Open VSX/npm publishing, release uploads, hosted previews, and badge updates are disabled in this fork.
 
