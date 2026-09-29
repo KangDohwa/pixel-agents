@@ -15,9 +15,26 @@ function sleep(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
+function resolveVSCodeExecutablePath(vscodePath: string): string {
+  if (process.platform !== 'darwin' || fs.existsSync(vscodePath)) {
+    return vscodePath;
+  }
+
+  // @vscode/test-electron 2.x still returns Electron for newer stable builds.
+  for (const name of ['Code', 'Electron']) {
+    const candidate = path.join(path.dirname(vscodePath), name);
+    if (fs.existsSync(candidate)) {
+      return candidate;
+    }
+  }
+
+  throw new Error(`VS Code executable not found: ${vscodePath} (checked Code and Electron)`);
+}
+
 function readCachedVSCodePath(): string | null {
   try {
-    const vscodePath = fs.readFileSync(VSCODE_PATH_FILE, 'utf8').trim();
+    const cachedPath = fs.readFileSync(VSCODE_PATH_FILE, 'utf8').trim();
+    const vscodePath = cachedPath ? resolveVSCodeExecutablePath(cachedPath) : '';
     return vscodePath && fs.existsSync(vscodePath) ? vscodePath : null;
   } catch {
     return null;
@@ -145,10 +162,12 @@ export default async function globalSetup(): Promise<void> {
       }
 
       console.log('[e2e] Ensuring VS Code is downloaded...');
-      const downloadedPath = await downloadAndUnzipVSCode({
-        version: 'stable',
-        cachePath: VSCODE_CACHE_DIR,
-      });
+      const downloadedPath = resolveVSCodeExecutablePath(
+        await downloadAndUnzipVSCode({
+          version: 'stable',
+          cachePath: VSCODE_CACHE_DIR,
+        }),
+      );
       console.log(`[e2e] VS Code executable: ${downloadedPath}`);
       patchProductJsonForWindows(downloadedPath);
       fs.writeFileSync(VSCODE_PATH_FILE, downloadedPath, 'utf8');
