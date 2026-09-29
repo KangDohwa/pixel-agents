@@ -2,6 +2,7 @@ import { spawn } from 'node:child_process';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
+import { stripVTControlCharacters } from 'node:util';
 
 import { expect, test } from '../../fixtures/standalone';
 import { launchStandalone } from '../../helpers/standalone';
@@ -314,8 +315,10 @@ test('Vite decoded and browser PNG fallback both load all layered combinations @
     { cwd: root, windowsHide: true, stdio: 'pipe' },
   );
   let url: string | undefined;
+  let viteOutput = '';
   vite.stdout.on('data', (chunk) => {
-    url ??= String(chunk).match(/http:\/\/127\.0\.0\.1:\d+\//)?.[0];
+    viteOutput += String(chunk);
+    url ??= stripVTControlCharacters(viteOutput).match(/http:\/\/127\.0\.0\.1:\d+\//)?.[0];
   });
   try {
     await expect.poll(() => url).toBeTruthy();

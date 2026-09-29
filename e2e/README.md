@@ -259,12 +259,12 @@ This section is auto-generated. Do not edit between the markers; CI fails on dri
 
 ### `@area:standalone` (17 tests)
 
-- `e2e/standalone/appearance.spec.ts:11` — Codex first parent link displays and persists the chosen parent appearance
-- `e2e/standalone/appearance.spec.ts:57` — corrupt copied manifest delivers Legacy fallback without losing the saved choice
-- `e2e/standalone/appearance.spec.ts:117` — layered character controls persist through reload, reconnect and restart; old saves stay Legacy
-- `e2e/standalone/appearance.spec.ts:185` — layered character fallback and asset reload preserve selections
-- `e2e/standalone/appearance.spec.ts:250` — layered character saves through the VS Code postMessage transport
-- `e2e/standalone/appearance.spec.ts:307` — Vite decoded and browser PNG fallback both load all layered combinations
+- `e2e/standalone/appearance.spec.ts:12` — Codex first parent link displays and persists the chosen parent appearance
+- `e2e/standalone/appearance.spec.ts:58` — corrupt copied manifest delivers Legacy fallback without losing the saved choice
+- `e2e/standalone/appearance.spec.ts:118` — layered character controls persist through reload, reconnect and restart; old saves stay Legacy
+- `e2e/standalone/appearance.spec.ts:186` — layered character fallback and asset reload preserve selections
+- `e2e/standalone/appearance.spec.ts:251` — layered character saves through the VS Code postMessage transport
+- `e2e/standalone/appearance.spec.ts:308` — Vite decoded and browser PNG fallback both load all layered combinations
 - `e2e/standalone/hooks.spec.ts:17` — propagates hook-driven lifecycle into the browser UI (Standalone / hooks)
 - `e2e/standalone/hooks.spec.ts:134` — the tokened page shows the Intro and Install writes the hooks (Standalone / hooks consent)
 - `e2e/standalone/hooks.spec.ts:161` — an untokened spectator page never sees the consent dialog (Standalone / hooks consent)
